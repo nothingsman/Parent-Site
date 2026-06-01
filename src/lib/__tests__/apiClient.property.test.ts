@@ -7,10 +7,15 @@ const _env = vi.hoisted(() => {
 });
 void _env;
 
-import { describe, it, expect } from 'vitest';
+const refreshTokenMock = vi.fn();
+vi.mock('@/services/authService', () => ({
+  refreshToken: () => refreshTokenMock(),
+}));
+
+import { describe, it, expect, beforeEach } from 'vitest';
 import * as fc from 'fast-check';
 import { ApiError, API_ERROR_CODES } from '@/types/api';
-import { configureApiClient } from '../apiClient';
+import { apiClient, configureApiClient, isPublicInvitationRequestUrl } from '../apiClient';
 
 // ── Property 6: Bearer token wiring ──────────────────────────────────────────
 
@@ -47,6 +52,15 @@ describe('configureApiClient (Property 6)', () => {
   });
 });
 
+describe('invitation request URL detection', () => {
+  it('marks invitation OTP and completion endpoints as public', () => {
+    expect(isPublicInvitationRequestUrl('/api/parents/request-invitation-otp/')).toBe(true);
+    expect(isPublicInvitationRequestUrl('/api/parents/verify-invitation-otp/')).toBe(true);
+    expect(isPublicInvitationRequestUrl('/api/parents/complete-invitation/')).toBe(true);
+    expect(isPublicInvitationRequestUrl('/api/parents/me/')).toBe(false);
+  });
+});
+
 // ── Property 7: 5xx status detection ─────────────────────────────────────────
 
 /**
@@ -77,6 +91,10 @@ describe('5xx status detection (Property 7)', () => {
 // ── Task 5.4: Unit tests for interceptor error branches ───────────────────────
 
 describe('ApiError construction for interceptor branches (Task 5.4)', () => {
+  beforeEach(() => {
+    refreshTokenMock.mockReset();
+  });
+
   it('network error produces ApiError with NETWORK_ERROR code and status 0', () => {
     const error = new ApiError(API_ERROR_CODES.NETWORK_ERROR, 'Network error. Check your connection.', 0);
     expect(error.errorCode).toBe('NETWORK_ERROR');
@@ -122,5 +140,124 @@ describe('ApiError construction for interceptor branches (Task 5.4)', () => {
     expect(error.errorCode).toBe('SERVER_ERROR');
     expect(error.status).toBe(500);
     expect(error.status).toBeGreaterThanOrEqual(500);
+  });
+
+  it('401 from request-invitation-otp does not call onUnauthorized and preserves validation details', async () => {
+    const onUnauthorized = vi.fn();
+    configureApiClient({
+      getAccessToken: () => null,
+      onUnauthorized,
+      onServerError: () => {},
+    });
+
+    const rejected = apiClient.interceptors.response.handlers[0]?.rejected;
+    const error = {
+      config: {
+        url: '/api/parents/request-invitation-otp/',
+        headers: {},
+      },
+      response: {
+        status: 401,
+        data: {
+          errors: [{ field: 'token', detail: 'Invalid or expired token.' }],
+        },
+      },
+      message: 'Request failed with status code 401',
+    };
+
+    await expect(rejected?.(error as never)).rejects.toMatchObject({
+      status: 401,
+      details: {
+        errors: [{ field: 'token', detail: 'Invalid or expired token.' }],
+      },
+    });
+    expect(onUnauthorized).not.toHaveBeenCalled();
+    expect(refreshTokenMock).not.toHaveBeenCalled();
+  });
+
+  it('401 from verify-invitation-otp does not call onUnauthorized', async () => {
+    const onUnauthorized = vi.fn();
+    configureApiClient({
+      getAccessToken: () => null,
+      onUnauthorized,
+      onServerError: () => {},
+    });
+
+    const rejected = apiClient.interceptors.response.handlers[0]?.rejected;
+    const error = {
+      config: {
+        url: '/api/parents/verify-invitation-otp/',
+        headers: {},
+      },
+      response: {
+        status: 401,
+        data: {
+          errors: [{ field: 'otp_code', detail: 'Invalid or expired OTP code.' }],
+        },
+      },
+      message: 'Request failed with status code 401',
+    };
+
+    await expect(rejected?.(error as never)).rejects.toMatchObject({ status: 401 });
+    expect(onUnauthorized).not.toHaveBeenCalled();
+    expect(refreshTokenMock).not.toHaveBeenCalled();
+  });
+
+  it('401 from complete-invitation does not call onUnauthorized', async () => {
+    const onUnauthorized = vi.fn();
+    configureApiClient({
+      getAccessToken: () => null,
+      onUnauthorized,
+      onServerError: () => {},
+    });
+
+    const rejected = apiClient.interceptors.response.handlers[0]?.rejected;
+    const error = {
+      config: {
+        url: '/api/parents/complete-invitation/',
+        headers: {},
+      },
+      response: {
+        status: 401,
+        data: {
+          errors: [{ field: 'invitation_verification_token', detail: 'Invalid invitation verification token.' }],
+        },
+      },
+      message: 'Request failed with status code 401',
+    };
+
+    await expect(rejected?.(error as never)).rejects.toMatchObject({ status: 401 });
+    expect(onUnauthorized).not.toHaveBeenCalled();
+    expect(refreshTokenMock).not.toHaveBeenCalled();
+  });
+
+  it('401 from a protected API still calls onUnauthorized when refresh fails', async () => {
+    const onUnauthorized = vi.fn();
+    refreshTokenMock.mockRejectedValue(new Error('refresh failed'));
+    configureApiClient({
+      getAccessToken: () => null,
+      onUnauthorized,
+      onServerError: () => {},
+    });
+
+    const rejected = apiClient.interceptors.response.handlers[0]?.rejected;
+    const error = {
+      config: {
+        url: '/api/parents/me/',
+        headers: {},
+      },
+      response: {
+        status: 401,
+        data: {},
+      },
+      message: 'Request failed with status code 401',
+    };
+
+    await expect(rejected?.(error as never)).rejects.toMatchObject({
+      errorCode: API_ERROR_CODES.UNAUTHORIZED,
+      status: 401,
+    });
+    expect(refreshTokenMock).toHaveBeenCalled();
+    expect(onUnauthorized).toHaveBeenCalled();
   });
 });

@@ -46,18 +46,31 @@ export type ApiErrorCode = typeof API_ERROR_CODES[keyof typeof API_ERROR_CODES];
 export interface CompleteInvitationRequest {
   uid: string;
   token: string;
+  new_password: string;
+  invitation_verification_token: string;
 }
 
 export interface OtpRequest {
   phone_number: string;
 }
 
-export interface OtpVerifyRequest {
-  phone_number: string;
+export interface InvitationOtpRequest {
+  uid: string;
+  token: string;
+}
+
+export interface InvitationOtpVerifyRequest {
+  uid: string;
+  token: string;
   otp_code: string;
 }
 
-export interface OtpVerifyResponse {
+export interface PasswordLoginRequest {
+  phone_number: string;
+  password: string;
+}
+
+export interface JwtLoginResponse {
   access: string;
   refresh: string;
 }

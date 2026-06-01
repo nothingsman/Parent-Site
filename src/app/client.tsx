@@ -8,6 +8,14 @@ import { getAccessToken, restoreSession } from '@/services/authService'
 
 const App = dynamic(() => import('../App'), { ssr: false })
 
+export function isPublicPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  const isInvitationPath =
+    pathname === '/complete-parent-invitation' ||
+    pathname.startsWith('/complete-parent-invitation/');
+  return pathname === '/login' || isInvitationPath;
+}
+
 export function ClientOnly() {
   const router = useRouter();
   const pathname = usePathname();
@@ -23,10 +31,7 @@ export function ClientOnly() {
     let cancelled = false;
 
     const initAuth = async () => {
-      const isInvitationPath =
-        pathname === '/complete-parent-invitation' ||
-        pathname.startsWith('/complete-parent-invitation/');
-      const isPublic = pathname === '/login' || isInvitationPath;
+      const isPublic = isPublicPath(pathname);
 
       if (isPublic) {
         if (!cancelled) setAuthReady(true);
@@ -53,16 +58,13 @@ export function ClientOnly() {
   }, [pathname, router]);
 
   useEffect(() => {
-    const isInvitationPath =
-      pathname === '/complete-parent-invitation' ||
-      pathname.startsWith('/complete-parent-invitation/');
-    const isPublic = pathname === '/login' || isInvitationPath;
+    const isPublic = isPublicPath(pathname);
     if (authReady && !isPublic && !getAccessToken()) {
       redirectToLogin();
     }
   }, [authReady, pathname, router]);
 
   if (!authReady) return null;
-  if (!getAccessToken() && pathname !== '/login') return null;
+  if (!getAccessToken() && !isPublicPath(pathname)) return null;
   return <App />
 }

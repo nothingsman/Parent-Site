@@ -2,105 +2,36 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'motion/react';
-import { requestOtp, verifyOtp } from '@/services/authService';
-import { getParentMe, getUserMe } from '@/services/parentService';
+import { motion } from 'motion/react';
+import { login } from '@/services/authService';
 import { getChildren } from '@/services/childService';
-import { AlertCircle, CheckCircle, KeyRound, Loader2, Phone, ShieldCheck } from 'lucide-react';
-
-type Step = 'phone' | 'otp';
-
-function toFieldError(error: unknown, key: string): string | null {
-  if (typeof error !== 'object' || error === null) return null;
-  const maybe = (error as Record<string, unknown>)[key];
-  if (Array.isArray(maybe) && typeof maybe[0] === 'string') return maybe[0];
-  return null;
-}
+import { getApiFieldError, getApiFormError } from '@/lib/apiErrors';
+import { getParentMe, getUserMe } from '@/services/parentService';
+import { AlertCircle, KeyRound, Loader2, LockKeyhole, Phone, ShieldCheck } from 'lucide-react';
 
 export default function LoginPage() {
-  const RESEND_COOLDOWN_SECONDS = 30;
   const router = useRouter();
-  const [step, setStep] = useState<Step>('phone');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [otpCode, setOtpCode] = useState('');
+  const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isResending, setIsResending] = useState(false);
-  const [resendCooldownSeconds, setResendCooldownSeconds] = useState(0);
-  const [message, setMessage] = useState<string | null>(null);
-  const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const SUCCESS_MESSAGE_TIMEOUT_MS = 3000;
 
-  useEffect(() => {
-    if (resendCooldownSeconds <= 0) return undefined;
-    const timer = window.setInterval(() => {
-      setResendCooldownSeconds((current) => (current > 0 ? current - 1 : 0));
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [resendCooldownSeconds]);
-
-  useEffect(() => {
-    if (!message) return undefined;
-    const timer = window.setTimeout(() => {
-      setMessage(null);
-    }, SUCCESS_MESSAGE_TIMEOUT_MS);
-    return () => window.clearTimeout(timer);
-  }, [message]);
-
-  useEffect(() => {
-    if (!resendMessage) return undefined;
-    const timer = window.setTimeout(() => {
-      setResendMessage(null);
-    }, SUCCESS_MESSAGE_TIMEOUT_MS);
-    return () => window.clearTimeout(timer);
-  }, [resendMessage]);
-
-  async function onRequestOtp(e: FormEvent) {
-    e.preventDefault();
+  async function onLogin(event: FormEvent) {
+    event.preventDefault();
     setError(null);
-    setMessage(null);
     setIsSubmitting(true);
-    try {
-      const res = await requestOtp(phoneNumber.trim());
-      setMessage(res.message);
-      setResendMessage(null);
-      setResendCooldownSeconds(0);
-      setStep('otp');
-    } catch (requestError) {
-      setError(toFieldError((requestError as { details?: unknown })?.details, 'phone_number') ?? 'Failed to send OTP.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
 
-  async function onResendOtp() {
-    if (isResending || resendCooldownSeconds > 0) return;
-    setResendMessage(null);
-    setError(null);
-    setIsResending(true);
     try {
-      const res = await requestOtp(phoneNumber.trim());
-      setResendMessage(res.message);
-      setResendCooldownSeconds(RESEND_COOLDOWN_SECONDS);
-    } catch (resendError) {
-      setError(toFieldError((resendError as { details?: unknown })?.details, 'phone_number') ?? 'Failed to resend OTP.');
-    } finally {
-      setIsResending(false);
-    }
-  }
-
-  async function onVerifyOtp(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setMessage(null);
-    setIsSubmitting(true);
-    try {
-      await verifyOtp({ phone_number: phoneNumber.trim(), otp_code: otpCode.trim() });
+      await login({ phone_number: phoneNumber.trim(), password });
       await Promise.allSettled([getUserMe(), getParentMe(), getChildren()]);
       router.push('/');
-    } catch (verifyError) {
-      const otpFieldError = toFieldError((verifyError as { details?: unknown })?.details, 'otp_code');
-      setError(otpFieldError ?? 'Login failed. Please try again.');
+    } catch (loginError) {
+      setError(
+        getApiFieldError(loginError, 'phone_number')
+        ?? getApiFieldError(loginError, 'password')
+        ?? getApiFormError(loginError)
+        ?? 'Login failed. Please check your phone number and password.',
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -124,91 +55,54 @@ export default function LoginPage() {
             </div>
             <div>
               <h2 className="bg-gradient-to-r from-indigo-900 to-blue-600 bg-clip-text text-2xl leading-tight font-black tracking-tight text-transparent uppercase">Kelem Co.</h2>
-              <p className="mt-1 text-xs font-bold tracking-widest text-slate-500 uppercase">Parent Portal</p>
+              <p className="mt-1 text-xs font-bold tracking-widest text-slate-500 uppercase">Parent Portal Sign In</p>
             </div>
           </div>
 
-          <AnimatePresence mode="wait">
-            {error && (
-              <motion.div key="error" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-6 w-full overflow-hidden">
-                <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-800">
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
-                  <span className="leading-relaxed">{error}</span>
-                </div>
-              </motion.div>
-            )}
-            {message && (
-              <motion.div key="message" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-6 w-full overflow-hidden">
-                <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-semibold text-emerald-800">
-                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                  <span className="leading-relaxed">{message}</span>
-                </div>
-              </motion.div>
-            )}
-            {resendMessage && (
-              <motion.div key="resend" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-6 w-full overflow-hidden">
-                <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-semibold text-emerald-800">
-                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                  <span className="leading-relaxed">{resendMessage}</span>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {error ? (
+            <div className="mb-6 flex w-full items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-800">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+              <span className="leading-relaxed">{error}</span>
+            </div>
+          ) : null}
 
-          {step === 'phone' ? (
-            <form className="w-full space-y-5" onSubmit={onRequestOtp}>
-              <div className="space-y-1.5">
-                <label className="pl-1 text-[10px] font-black tracking-widest text-slate-500 uppercase">Phone Number</label>
-                <div className="relative flex items-center">
-                  <Phone className="pointer-events-none absolute left-4 h-4 w-4 text-slate-500" />
-                  <input
-                    className="w-full rounded-xl border border-slate-200 bg-white py-3.5 pr-4 pl-12 text-sm font-semibold text-slate-900 transition-all outline-none placeholder:text-slate-400 hover:border-slate-300 focus:border-indigo-900 focus:ring-4 focus:ring-indigo-900/10"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    placeholder="+2519XXXXXXXX"
-                    disabled={isSubmitting}
-                    required
-                  />
-                </div>
-              </div>
-              <button disabled={isSubmitting} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-900 py-4 text-xs font-black tracking-widest text-white uppercase shadow-lg shadow-indigo-900/20 transition-all hover:bg-indigo-950 disabled:cursor-not-allowed disabled:opacity-40">
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                <span>{isSubmitting ? 'Sending...' : 'Request OTP'}</span>
-              </button>
-            </form>
-          ) : (
-            <form className="w-full space-y-5" onSubmit={onVerifyOtp}>
-              <p className="text-center text-xs leading-relaxed font-medium text-slate-500">OTP sent to {phoneNumber}</p>
-              <div className="space-y-1.5">
-                <label className="pl-1 text-[10px] font-black tracking-widest text-slate-500 uppercase">OTP Code</label>
+          <form className="w-full space-y-5" onSubmit={onLogin}>
+            <div className="space-y-1.5">
+              <label className="pl-1 text-[10px] font-black tracking-widest text-slate-500 uppercase">Phone Number</label>
+              <div className="relative flex items-center">
+                <Phone className="pointer-events-none absolute left-4 h-4 w-4 text-slate-500" />
                 <input
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-900 transition-all outline-none placeholder:text-slate-400 hover:border-slate-300 focus:border-indigo-900 focus:ring-4 focus:ring-indigo-900/10"
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value)}
-                  placeholder="123456"
+                  className="w-full rounded-xl border border-slate-200 bg-white py-3.5 pr-4 pl-12 text-sm font-semibold text-slate-900 transition-all outline-none placeholder:text-slate-400 hover:border-slate-300 focus:border-indigo-900 focus:ring-4 focus:ring-indigo-900/10"
+                  value={phoneNumber}
+                  onChange={(event) => setPhoneNumber(event.target.value)}
+                  placeholder="+2519XXXXXXXX"
                   disabled={isSubmitting}
                   required
                 />
               </div>
+            </div>
 
-              <div className="flex items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={onResendOtp}
-                  disabled={isResending || isSubmitting || resendCooldownSeconds > 0}
-                  className="text-xs font-black tracking-wider text-indigo-900 uppercase disabled:cursor-not-allowed disabled:text-slate-400"
-                >
-                  {isResending ? 'Resending...' : 'Resend OTP'}
-                </button>
-                {resendCooldownSeconds > 0 ? <p className="text-xs text-slate-500">Resend in {resendCooldownSeconds}s</p> : null}
+            <div className="space-y-1.5">
+              <label className="pl-1 text-[10px] font-black tracking-widest text-slate-500 uppercase">Password</label>
+              <div className="relative flex items-center">
+                <LockKeyhole className="pointer-events-none absolute left-4 h-4 w-4 text-slate-500" />
+                <input
+                  type="password"
+                  className="w-full rounded-xl border border-slate-200 bg-white py-3.5 pr-4 pl-12 text-sm font-semibold text-slate-900 transition-all outline-none placeholder:text-slate-400 hover:border-slate-300 focus:border-indigo-900 focus:ring-4 focus:ring-indigo-900/10"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Enter your password"
+                  disabled={isSubmitting}
+                  required
+                />
               </div>
+            </div>
 
-              <button disabled={isSubmitting} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-900 py-4 text-xs font-black tracking-widest text-white uppercase shadow-lg shadow-indigo-900/20 transition-all hover:bg-indigo-950 disabled:cursor-not-allowed disabled:opacity-40">
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                <span>{isSubmitting ? 'Verifying...' : 'Verify OTP'}</span>
-              </button>
-            </form>
-          )}
+            <button disabled={isSubmitting} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-900 py-4 text-xs font-black tracking-widest text-white uppercase shadow-lg shadow-indigo-900/20 transition-all hover:bg-indigo-950 disabled:cursor-not-allowed disabled:opacity-40">
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              <span>{isSubmitting ? 'Signing In...' : 'Sign In'}</span>
+            </button>
+          </form>
         </div>
       </motion.div>
     </main>

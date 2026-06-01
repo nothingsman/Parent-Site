@@ -7,6 +7,16 @@ let getAccessToken: () => string | null = () => null;
 let onUnauthorized: () => void = () => {};
 let onServerError: (message: string) => void = () => {};
 
+const PUBLIC_INVITATION_ENDPOINTS = [
+  '/api/parents/request-invitation-otp/',
+  '/api/parents/verify-invitation-otp/',
+  '/api/parents/complete-invitation/',
+] as const;
+
+export function isPublicInvitationRequestUrl(requestUrl: string): boolean {
+  return PUBLIC_INVITATION_ENDPOINTS.some((endpoint) => requestUrl.includes(endpoint));
+}
+
 export function configureApiClient(opts: {
   getAccessToken: () => string | null;
   onUnauthorized: () => void;
@@ -56,9 +66,10 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
     const requestUrl = originalRequest?.url ?? '';
     const isRefreshRequest = requestUrl.includes('/auth/jwt/refresh/');
+    const isPublicInvitationRequest = isPublicInvitationRequestUrl(requestUrl);
 
     // 401: try refresh once, then retry the original request.
-    if (status === 401 && !originalRequest?._retry) {
+    if (status === 401 && !originalRequest?._retry && !isPublicInvitationRequest) {
       // If refresh endpoint itself failed, we cannot recover: force unauthenticated flow.
       if (isRefreshRequest) {
         onUnauthorized();
