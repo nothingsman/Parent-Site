@@ -23,6 +23,7 @@ import {
   requestInvitationOtp,
   verifyInvitationOtp,
   completeParentInvitation,
+  ensureAccessToken,
   refreshToken,
   logout,
   getAccessToken,
@@ -638,6 +639,40 @@ describe('authService', () => {
     const token = await refreshToken();
     expect(token).toEqual('tok-refreshed');
     expect(getAccessToken()).toEqual('tok-refreshed');
+  });
+
+  it('ensureAccessToken returns the current unexpired token', async () => {
+    const futureExp = Math.floor(Date.now() / 1000) + 60 * 60;
+    const payload = btoa(JSON.stringify({ exp: futureExp })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+    const tokenValue = `header.${payload}.signature`;
+
+    server.use(
+      http.post(`${BASE}/auth/jwt/create/`, () =>
+        HttpResponse.json({ access: tokenValue, refresh: 'ref123' })
+      )
+    );
+
+    await login({ phone_number: '+251900000000', password: 'secure-password' });
+    await expect(ensureAccessToken()).resolves.toBe(tokenValue);
+  });
+
+  it('ensureAccessToken refreshes an expired token', async () => {
+    const expiredExp = Math.floor(Date.now() / 1000) - 60;
+    const expiredPayload = btoa(JSON.stringify({ exp: expiredExp })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+    const expiredToken = `header.${expiredPayload}.signature`;
+
+    server.use(
+      http.post(`${BASE}/auth/jwt/create/`, () =>
+        HttpResponse.json({ access: expiredToken, refresh: 'ref123' })
+      ),
+      http.post(`${BASE}/auth/jwt/refresh/`, () =>
+        HttpResponse.json({ access: 'tok-refreshed' })
+      )
+    );
+
+    await login({ phone_number: '+251900000000', password: 'secure-password' });
+    await expect(ensureAccessToken()).resolves.toBe('tok-refreshed');
+    expect(getAccessToken()).toBe('tok-refreshed');
   });
 
   it('logout clears access token and calls queryClient.clear()', async () => {

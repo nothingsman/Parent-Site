@@ -1,16 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getParentMe, getUserMe } from '@/services/parentService';
 import { getSectionTeacherAssignments } from '@/services/teacherService';
 import {
   createChatThread,
   listChatThreads,
+  listThreadMessages,
   markThreadRead,
   resolveChatThread,
   sendChatMessage,
 } from '@/services/messageService';
 import { getMediaFile, uploadFileToMedia } from '@/services/mediaService';
-import { getAccessToken } from '@/services/authService';
+import { ensureAccessToken } from '@/services/authService';
 import { queryKeys } from '@/lib/queryKeys';
 import type { MediaFileResponse } from '@/types/api';
 import type { Child } from '@/types';
@@ -60,6 +61,26 @@ function normalizeAttachmentError(message: string): string {
   return message;
 }
 
+function mergeMessages(
+  existing: ChatMessage[],
+  incoming: ChatMessage[]
+): ChatMessage[] {
+  const byId = new Map<string, ChatMessage>();
+
+  for (const message of existing) {
+    byId.set(message.id, message);
+  }
+
+  for (const message of incoming) {
+    byId.set(message.id, message);
+  }
+
+  return [...byId.values()].sort(
+    (left, right) =>
+      new Date(left.created_at).getTime() - new Date(right.created_at).getTime()
+  );
+}
+
 export interface MessageContact extends DraftChatContact {
   unreadCount: number;
   updatedAt: string | null;
@@ -87,6 +108,7 @@ export interface UseMessageThreadsReturn {
   sendMessage: (params: { text: string; file?: File | null }) => Promise<boolean>;
   clearAttachment: () => void;
   attachmentMetaById: Record<string, MediaFileResponse>;
+  unreadTotal: number;
 }
 
 export function useMessageThreads(child: Child): UseMessageThreadsReturn {
@@ -111,6 +133,7 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
     error: null,
   });
   const [messageMap, setMessageMap] = useState<Record<string, ChatMessage[]>>({});
+  const [hydratedThreadUpdatedAt, setHydratedThreadUpdatedAt] = useState<Record<string, string>>({});
   const [attachmentMetaById, setAttachmentMetaById] = useState<Record<string, MediaFileResponse>>({});
   const [resolvedDraftKeys, setResolvedDraftKeys] = useState<Record<string, true>>({});
 
@@ -263,9 +286,17 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
     () => contacts.find((contact) => contact.key === activeKey) ?? contacts[0] ?? null,
     [contacts, activeKey]
   );
+  const activeThread = useMemo(
+    () => chatThreads.find((thread) => thread.id === activeContact?.existingThreadId) ?? null,
+    [activeContact?.existingThreadId, chatThreads]
+  );
 
   const activeThreadId = activeContact?.existingThreadId ?? null;
   const activeMessages = activeThreadId ? messageMap[activeThreadId] ?? [] : [];
+  const unreadTotal = useMemo(
+    () => contacts.reduce((sum, contact) => sum + contact.unreadCount, 0),
+    [contacts]
+  );
   const messagesLoading = Boolean(
     activeContact &&
       ((activeThreadId && !(activeThreadId in messageMap)) ||
@@ -279,7 +310,34 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
       if (!activeContact) return;
 
       const existingThreadId = activeContact.existingThreadId;
-      if (existingThreadId && existingThreadId in messageMap) return;
+      if (existingThreadId) {
+        const expectedUpdatedAt = activeThread?.updated_at ?? null;
+        const hydratedUpdatedAt = hydratedThreadUpdatedAt[existingThreadId] ?? null;
+        const needsRefresh =
+          !(existingThreadId in messageMap) ||
+          (expectedUpdatedAt !== null && hydratedUpdatedAt !== expectedUpdatedAt);
+
+        if (!needsRefresh) return;
+
+        const messages = await listThreadMessages(existingThreadId);
+        if (cancelled) return;
+
+        setMessageMap((current) => ({
+          ...current,
+          [existingThreadId]: mergeMessages(current[existingThreadId] ?? [], messages),
+        }));
+        setHydratedThreadUpdatedAt((current) => ({
+          ...current,
+          [existingThreadId]:
+            expectedUpdatedAt ??
+            messages[messages.length - 1]?.created_at ??
+            hydratedUpdatedAt ??
+            '',
+        }));
+        return;
+      }
+
+      if (activeContact.key in resolvedDraftKeys) return;
 
       const response = await resolveChatThread({
         studentId: child.id,
@@ -313,7 +371,17 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
       });
       setMessageMap((current) => ({
         ...current,
-        [response.thread!.id]: response.messages,
+        [response.thread!.id]: mergeMessages(
+          current[response.thread!.id] ?? [],
+          response.messages
+        ),
+      }));
+      setHydratedThreadUpdatedAt((current) => ({
+        ...current,
+        [response.thread!.id]:
+          response.thread!.updated_at ||
+          response.messages[response.messages.length - 1]?.created_at ||
+          '',
       }));
 
       if (!existingThreadId) {
@@ -325,7 +393,7 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
     return () => {
       cancelled = true;
     };
-  }, [activeContact, child.id, messageMap, queryClient]);
+  }, [activeContact, activeThread?.updated_at, child.id, hydratedThreadUpdatedAt, messageMap, queryClient, resolvedDraftKeys]);
 
   useEffect(() => {
     const currentUserId = userMe?.id ?? null;
@@ -389,28 +457,32 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
       socketRef.current = null;
     }
     if (!activeThreadId) {
-      setWebsocketState('idle');
-      return;
-    }
-
-    const token = getAccessToken();
-    if (!token) {
-      setWebsocketState('disconnected');
+      setWebsocketState((current) => current === 'idle' ? current : 'idle');
       return;
     }
 
     let reconnectAttempts = 0;
     let disposed = false;
+    let shouldForceRefresh = false;
 
-    const connect = () => {
+    const connect = async () => {
       if (disposed) return;
-      setWebsocketState(reconnectAttempts === 0 ? 'connecting' : 'reconnecting');
+      const nextState = reconnectAttempts === 0 ? 'connecting' : 'reconnecting';
+      setWebsocketState((current) => current === nextState ? current : nextState);
+      const token = await ensureAccessToken(shouldForceRefresh);
+      shouldForceRefresh = false;
+      if (disposed) return;
+      if (!token) {
+        setWebsocketState((current) => current === 'disconnected' ? current : 'disconnected');
+        return;
+      }
+
       const socket = new WebSocket(buildWebsocketUrl(activeThreadId, token));
       socketRef.current = socket;
 
       socket.onopen = () => {
         reconnectAttempts = 0;
-        setWebsocketState('connected');
+        setWebsocketState((current) => current === 'connected' ? current : 'connected');
       };
 
       socket.onmessage = (event) => {
@@ -422,14 +494,17 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
           if (payload.event === 'message.created') {
             setMessageMap((current) => {
               const existing = current[payload.thread_id] ?? [];
-              if (existing.some((message) => message.id === payload.message.id)) {
-                return current;
-              }
+              const nextMessages = mergeMessages(existing, [payload.message]);
+              if (nextMessages.length === existing.length) return current;
               return {
                 ...current,
-                [payload.thread_id]: [...existing, payload.message],
+                [payload.thread_id]: nextMessages,
               };
             });
+            setHydratedThreadUpdatedAt((current) => ({
+              ...current,
+              [payload.thread_id]: payload.message.created_at,
+            }));
             queryClient.setQueryData<ChatThread[]>(
               queryKeys.chatThreads(),
               (current = []) =>
@@ -474,9 +549,10 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
         }
       };
 
-      socket.onclose = () => {
+      socket.onclose = (event) => {
         if (disposed) return;
-        setWebsocketState('disconnected');
+        setWebsocketState((current) => current === 'disconnected' ? current : 'disconnected');
+        shouldForceRefresh = event.code === 4403;
         reconnectAttempts += 1;
         const delay = Math.min(1000 * 2 ** (reconnectAttempts - 1), 10000);
         reconnectTimerRef.current = window.setTimeout(connect, delay);
@@ -487,7 +563,11 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
       };
     };
 
-    connect();
+    connect().catch(() => {
+      if (!disposed) {
+        setWebsocketState((current) => current === 'disconnected' ? current : 'disconnected');
+      }
+    });
 
     return () => {
       disposed = true;
@@ -569,7 +649,11 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
 
       setMessageMap((current) => ({
         ...current,
-        [thread.id]: [...(current[thread.id] ?? []), message],
+        [thread.id]: mergeMessages(current[thread.id] ?? [], [message]),
+      }));
+      setHydratedThreadUpdatedAt((current) => ({
+        ...current,
+        [thread.id]: message.created_at,
       }));
 
       queryClient.setQueryData<ChatThread[]>(
@@ -617,7 +701,7 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
     return false;
   }
 
-  function clearAttachment() {
+  const clearAttachment = useCallback(() => {
     setUploadState({
       status: 'idle',
       file: null,
@@ -625,7 +709,7 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
       progressLabel: null,
       error: null,
     });
-  }
+  }, []);
 
   return {
     contacts,
@@ -647,5 +731,6 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
     sendMessage,
     clearAttachment,
     attachmentMetaById,
+    unreadTotal,
   };
 }

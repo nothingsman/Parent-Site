@@ -26,7 +26,9 @@ configureApiClient({
     // Clear any cached auth state and redirect to login
     queryClient.clear();
     if (typeof window !== 'undefined') {
-      window.location.href = '/login';
+      if (window.location.pathname !== '/login') {
+        window.location.replace('/login');
+      }
     }
   },
   onServerError: (message: string) => {

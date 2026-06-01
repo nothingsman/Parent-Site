@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/apiClient';
+import { notifyUnauthorized } from '@/lib/apiClient';
 import type {
   AuthResponse,
   CompleteInvitationRequest,
@@ -12,9 +13,30 @@ import type {
 
 // In-memory access token (never persisted to localStorage)
 let accessToken: string | null = null;
+let refreshPromise: Promise<string> | null = null;
 
 export function getAccessToken(): string | null {
   return accessToken;
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
+    const json = atob(padded);
+    return JSON.parse(json) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function isExpiredToken(token: string): boolean {
+  const payload = decodeJwtPayload(token);
+  const exp = payload?.exp;
+  if (typeof exp !== 'number') return false;
+  return exp * 1000 <= Date.now();
 }
 
 export async function login(credentials: PasswordLoginRequest): Promise<AuthResponse> {
@@ -70,13 +92,41 @@ export async function completeParentInvitation(payload: CompleteInvitationReques
 
 export async function logout(queryClient?: import('@tanstack/react-query').QueryClient): Promise<void> {
   accessToken = null;
+  refreshPromise = null;
   queryClient?.clear();
 }
 
 export async function refreshToken(): Promise<string> {
-  const res = await apiClient.post<RefreshResponse>('/auth/jwt/refresh/', {});
-  accessToken = res.data.access;
-  return accessToken;
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+    const res = await apiClient.post<RefreshResponse>('/auth/jwt/refresh/', {});
+    accessToken = res.data.access;
+    return accessToken;
+  })();
+
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
+  }
+}
+
+export async function ensureAccessToken(forceRefresh = false): Promise<string | null> {
+  const token = getAccessToken();
+  if (!forceRefresh && token && !isExpiredToken(token)) {
+    return token;
+  }
+
+  try {
+    return await refreshToken();
+  } catch {
+    accessToken = null;
+    notifyUnauthorized();
+    return null;
+  }
 }
 
 export async function restoreSession(): Promise<AuthResponse | null> {

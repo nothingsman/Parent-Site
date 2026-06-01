@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
-import { login } from '@/services/authService';
+import { getAccessToken, login, restoreSession } from '@/services/authService';
 import { getChildren } from '@/services/childService';
 import { getApiFieldError, getApiFormError } from '@/lib/apiErrors';
 import { getParentMe, getUserMe } from '@/services/parentService';
@@ -15,6 +15,28 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const initAuth = async () => {
+      if (getAccessToken()) {
+        router.replace('/');
+        return;
+      }
+
+      const restored = await restoreSession();
+      if (!cancelled && restored?.accessToken) {
+        router.replace('/');
+      }
+    };
+
+    initAuth().catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   async function onLogin(event: FormEvent) {
     event.preventDefault();
