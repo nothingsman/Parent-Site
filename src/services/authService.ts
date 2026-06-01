@@ -129,6 +129,10 @@ export async function ensureAccessToken(forceRefresh = false): Promise<string | 
   }
 }
 
+export async function resetPassword(email: string): Promise<void> {
+  await apiClient.post('/auth/users/reset_password/', { email });
+}
+
 export async function restoreSession(): Promise<AuthResponse | null> {
   try {
     const newToken = await refreshToken();

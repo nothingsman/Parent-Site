@@ -4,6 +4,15 @@
 // in Next.js 13+ (including Next.js 16) without any additional webpack config.
 
 /** @type {import('next').NextConfig} */
-const nextConfig = {}
+const nextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+    ],
+  },
+}
 
 export default nextConfig

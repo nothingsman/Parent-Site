@@ -25,6 +25,7 @@
     "next": "^16.2.6",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
+    "react-phone-number-input": "^3.4.17",
     "recharts": "^3.8.1",
     "telerivet": "^1.8.5"
   },

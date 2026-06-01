@@ -2,12 +2,16 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { motion } from 'motion/react';
 import { getAccessToken, login, restoreSession } from '@/services/authService';
 import { getChildren } from '@/services/childService';
 import { getApiFieldError, getApiFormError } from '@/lib/apiErrors';
 import { getParentMe, getUserMe } from '@/services/parentService';
-import { AlertCircle, KeyRound, Loader2, LockKeyhole, Phone, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Loader2, Lock, Eye, EyeOff } from 'lucide-react';
+import PhoneInput from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
+import { LegalModal, TermsOfService, PrivacyPolicy } from '@/components/LegalModal';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,6 +19,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,73 +67,163 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-slate-50 px-4 font-sans">
-      <div className="pointer-events-none absolute top-[-10%] left-[-10%] h-[50%] w-[50%] rounded-full bg-indigo-600/10 blur-[120px]" />
-      <div className="pointer-events-none absolute right-[-10%] bottom-[-10%] h-[50%] w-[50%] rounded-full bg-blue-500/15 blur-[120px]" />
-
-      <motion.div
-        initial={{ opacity: 0, y: 25, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="relative z-10 w-full max-w-[440px]"
-      >
-        <div className="flex flex-col items-center rounded-[2rem] border border-slate-200 bg-white/70 p-8 shadow-[0_20px_50px_rgba(0,0,0,0.06)] backdrop-blur-xl md:p-10">
-          <div className="mb-8 flex flex-col items-center gap-3 text-center">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-900 to-blue-600 shadow-lg shadow-indigo-900/20">
-              <KeyRound className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h2 className="bg-gradient-to-r from-indigo-900 to-blue-600 bg-clip-text text-2xl leading-tight font-black tracking-tight text-transparent uppercase">Kelem Co.</h2>
-              <p className="mt-1 text-xs font-bold tracking-widest text-slate-500 uppercase">Parent Portal Sign In</p>
-            </div>
-          </div>
-
-          {error ? (
-            <div className="mb-6 flex w-full items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-800">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
-              <span className="leading-relaxed">{error}</span>
-            </div>
-          ) : null}
-
-          <form className="w-full space-y-5" onSubmit={onLogin}>
-            <div className="space-y-1.5">
-              <label className="pl-1 text-[10px] font-black tracking-widest text-slate-500 uppercase">Phone Number</label>
-              <div className="relative flex items-center">
-                <Phone className="pointer-events-none absolute left-4 h-4 w-4 text-slate-500" />
-                <input
-                  className="w-full rounded-xl border border-slate-200 bg-white py-3.5 pr-4 pl-12 text-sm font-semibold text-slate-900 transition-all outline-none placeholder:text-slate-400 hover:border-slate-300 focus:border-indigo-900 focus:ring-4 focus:ring-indigo-900/10"
-                  value={phoneNumber}
-                  onChange={(event) => setPhoneNumber(event.target.value)}
-                  placeholder="+2519XXXXXXXX"
-                  disabled={isSubmitting}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="pl-1 text-[10px] font-black tracking-widest text-slate-500 uppercase">Password</label>
-              <div className="relative flex items-center">
-                <LockKeyhole className="pointer-events-none absolute left-4 h-4 w-4 text-slate-500" />
-                <input
-                  type="password"
-                  className="w-full rounded-xl border border-slate-200 bg-white py-3.5 pr-4 pl-12 text-sm font-semibold text-slate-900 transition-all outline-none placeholder:text-slate-400 hover:border-slate-300 focus:border-indigo-900 focus:ring-4 focus:ring-indigo-900/10"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Enter your password"
-                  disabled={isSubmitting}
-                  required
-                />
-              </div>
-            </div>
-
-            <button disabled={isSubmitting} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-900 py-4 text-xs font-black tracking-widest text-white uppercase shadow-lg shadow-indigo-900/20 transition-all hover:bg-indigo-950 disabled:cursor-not-allowed disabled:opacity-40">
-              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-              <span>{isSubmitting ? 'Signing In...' : 'Sign In'}</span>
-            </button>
-          </form>
+    <div className="min-h-screen flex flex-col lg:flex-row">
+      <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-[#1A237E] to-[#283593] overflow-hidden">
+        <div className="absolute inset-0">
+          <Image
+            src="https://images.unsplash.com/photo-1588072432836-e10032774350?w=1200&h=1200&fit=crop&q=80"
+            alt="Parent and child learning"
+            fill
+            priority
+            quality={85}
+            sizes="50vw"
+            className="object-cover opacity-25"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#1A237E]/95 via-[#1A237E]/60 to-transparent" />
         </div>
-      </motion.div>
-    </main>
+        <div className="relative z-10 flex flex-col justify-end p-12 text-white">
+          <h2 className="text-3xl font-bold mb-4">Welcome back, parent</h2>
+          <p className="max-w-md text-base text-blue-200 md:text-lg">
+            Sign in to stay connected with your child&apos;s academic journey, track progress, and receive updates.
+          </p>
+          <div className="mt-8 flex items-center gap-2 text-sm text-blue-300">
+            <span>Photo by</span>
+            <a
+              href="https://unsplash.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-white transition-colors"
+            >
+              Unsplash
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-8 lg:p-12 bg-white">
+        <div className="w-full max-w-md">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="mb-8">
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Parent login</h1>
+              <p className="text-slate-600">
+                Use your registered phone number to sign in.
+              </p>
+            </div>
+
+            {error && (
+              <div className="mb-6">
+                <div className="bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 flex items-start gap-3 shadow-sm">
+                  <AlertCircle size={18} className="text-rose-500 mt-0.5 shrink-0" />
+                  <p className="text-sm text-rose-800 flex-1">{error}</p>
+                </div>
+              </div>
+            )}
+
+            <form onSubmit={onLogin} className="space-y-4">
+              <div className="space-y-1.5">
+                <label htmlFor="phone" className="text-sm font-semibold text-slate-700">
+                  Phone Number
+                </label>
+                <div className="relative">
+                  <div className="w-full phone-input-compact rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm transition-all focus-within:border-[#1A237E] focus-within:bg-white">
+                    <PhoneInput
+                      international
+                      defaultCountry="ET"
+                      value={phoneNumber || undefined}
+                      onChange={(v) => setPhoneNumber(v ?? '')}
+                      placeholder="+251 9XX XXX XXX"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="password" className="text-sm font-semibold text-slate-700">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    autoComplete="current-password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    disabled={isSubmitting}
+                    className="w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-[#1A237E] transition-all text-sm bg-slate-50 focus:bg-white disabled:opacity-60"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <a
+                  href="/forgot-password"
+                  className="text-sm font-medium text-[#1A237E] hover:text-blue-800 transition-colors"
+                >
+                  Forgot password?
+                </a>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#1A237E] text-white font-semibold hover:bg-blue-900 transition disabled:opacity-60"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  'Sign in'
+                )}
+              </button>
+
+              <p className="mt-6 text-center text-xs text-slate-500">
+                By clicking continue, you agree to our{' '}
+                <button
+                  type="button"
+                  onClick={() => setShowTerms(true)}
+                  className="underline hover:text-slate-700 font-medium"
+                >
+                  Terms of Service
+                </button>{' '}
+                and{' '}
+                <button
+                  type="button"
+                  onClick={() => setShowPrivacy(true)}
+                  className="underline hover:text-slate-700 font-medium"
+                >
+                  Privacy Policy
+                </button>
+                .
+              </p>
+            </form>
+          </motion.div>
+        </div>
+      </div>
+
+      <LegalModal isOpen={showTerms} onClose={() => setShowTerms(false)} title="Terms of Service">
+        <TermsOfService />
+      </LegalModal>
+
+      <LegalModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} title="Privacy Policy">
+        <PrivacyPolicy />
+      </LegalModal>
+    </div>
   );
 }
