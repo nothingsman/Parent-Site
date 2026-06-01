@@ -22,6 +22,8 @@ interface CalendarDay {
   record: AttendanceRecordEntry | null;
 }
 
+const EMPTY_RECORDS: AttendanceRecordEntry[] = [];
+
 const MONTH_FORMATTER = new Intl.DateTimeFormat('en-US', {
   month: 'long',
   year: 'numeric',
@@ -46,6 +48,13 @@ function startOfMonth(date: Date): Date {
 
 function addMonths(date: Date, amount: number): Date {
   return new Date(date.getFullYear(), date.getMonth() + amount, 1);
+}
+
+function isSameMonth(left: Date, right: Date): boolean {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth()
+  );
 }
 
 function getInitialMonth(records: AttendanceRecordEntry[]): Date {
@@ -127,7 +136,8 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   const [showLogAbsenceModal, setShowLogAbsenceModal] = useState(false);
   const [toast, setToast] = useState<{ show: boolean; message: string } | null>(null);
 
-  const records = attendance?.records ?? [];
+  const records = attendance?.records ?? EMPTY_RECORDS;
+  const initialMonth = useMemo(() => getInitialMonth(records), [records]);
   const summary = attendance?.summary;
   const selectedRecord = useMemo(
     () => records.find((record) => record.id === selectedDayKey) ?? null,
@@ -161,8 +171,10 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   const name = student.name || 'Student';
 
   React.useEffect(() => {
-    setCalendarMonth(getInitialMonth(records));
-  }, [records]);
+    setCalendarMonth((currentMonth) => (
+      isSameMonth(currentMonth, initialMonth) ? currentMonth : initialMonth
+    ));
+  }, [initialMonth]);
 
   if (isLoading) {
     return (
@@ -380,8 +392,8 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
 
         <div className="attendance-cal-grid">
           <div className="attendance-cal-weekdays">
-            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((weekday) => (
-              <div key={weekday} className="attendance-cal-wday">{weekday}</div>
+            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((weekday, index) => (
+              <div key={`${weekday}-${index}`} className="attendance-cal-wday">{weekday}</div>
             ))}
           </div>
 
