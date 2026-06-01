@@ -195,24 +195,7 @@ export default function LoginPage() {
   }, [router]);
 
   function onCountryChange(next: Country) {
-    const prevCode = getCountryCallingCode(country);
-    const nextCode = getCountryCallingCode(next);
-
     setCountry(next);
-
-    setPhoneNumber((current) => {
-      const trimmed = current.trim();
-      if (!trimmed) {
-        return `+${nextCode}`;
-      }
-      if (trimmed === `+${prevCode}`) {
-        return `+${nextCode}`;
-      }
-      if (trimmed.startsWith(`+${prevCode}`)) {
-        return `+${nextCode}${trimmed.slice(String(`+${prevCode}`).length)}`;
-      }
-      return current;
-    });
   }
 
   async function onLogin(event: FormEvent) {
@@ -225,7 +208,17 @@ export default function LoginPage() {
       const formPhone = (form.elements.namedItem('phone_number') as HTMLInputElement | null)?.value;
       const formPassword = (form.elements.namedItem('password') as HTMLInputElement | null)?.value;
 
-      await login({ phone_number: (formPhone ?? phoneNumber).trim(), password: formPassword ?? password });
+      const rawPhone = (formPhone ?? phoneNumber).trim();
+      const compactPhone = rawPhone.replace(/\s+/g, "");
+      const callingCode = getCountryCallingCode(country);
+
+      const normalizedPhone = compactPhone
+        ? (compactPhone.startsWith("+")
+            ? compactPhone
+            : "+" + callingCode + compactPhone.replace(/^0+/g, ""))
+        : compactPhone;
+
+      await login({ phone_number: normalizedPhone, password: formPassword ?? password });
       await Promise.allSettled([getUserMe(), getParentMe(), getChildren()]);
       router.push('/');
     } catch (loginError) {
@@ -239,8 +232,6 @@ export default function LoginPage() {
       setIsSubmitting(false);
     }
   }
-
-  const placeholderCode = getCountryCallingCode(country);
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
@@ -311,14 +302,7 @@ export default function LoginPage() {
                         autoComplete="tel"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
-                        onFocus={() => {
-                          setPhoneNumber((current) => {
-                            const trimmed = current.trim();
-                            if (trimmed) return current;
-                            return `+${placeholderCode}`;
-                          });
-                        }}
-                        placeholder={`+${placeholderCode} 9XX XXX XXX`}
+                        placeholder="9XX XXX XXX"
                         disabled={isSubmitting}
                         className="min-w-0 w-full bg-transparent outline-none border-none text-[14px] font-inherit py-2.5 pr-2"
                       />
