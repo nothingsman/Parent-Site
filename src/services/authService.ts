@@ -2,10 +2,12 @@ import { apiClient } from '@/lib/apiClient';
 import type {
   AuthResponse,
   CompleteInvitationRequest,
+  InvitationOtpRequest,
+  InvitationOtpVerifyRequest,
+  JwtLoginResponse,
   OtpRequest,
   RefreshResponse,
-  OtpVerifyRequest,
-  OtpVerifyResponse,
+  PasswordLoginRequest,
 } from '@/types/api';
 
 // In-memory access token (never persisted to localStorage)
@@ -15,8 +17,8 @@ export function getAccessToken(): string | null {
   return accessToken;
 }
 
-export async function verifyOtp(credentials: OtpVerifyRequest): Promise<AuthResponse> {
-  const res = await apiClient.post<OtpVerifyResponse>('/auth/otp/verify/', credentials);
+export async function login(credentials: PasswordLoginRequest): Promise<AuthResponse> {
+  const res = await apiClient.post<JwtLoginResponse>('/auth/jwt/create/', credentials);
   accessToken = res.data.access;
   return {
     accessToken: res.data.access,
@@ -30,6 +32,28 @@ export async function requestOtp(phone_number: OtpRequest['phone_number']): Prom
   const res = await apiClient.post<{ message: string }>(
     '/auth/otp/request/',
     { phone_number },
+    { withCredentials: false }
+  );
+  return res.data;
+}
+
+export async function requestInvitationOtp(
+  payload: InvitationOtpRequest,
+): Promise<{ message: string }> {
+  const res = await apiClient.post<{ message: string }>(
+    '/api/parents/request-invitation-otp/',
+    payload,
+    { withCredentials: false }
+  );
+  return res.data;
+}
+
+export async function verifyInvitationOtp(
+  payload: InvitationOtpVerifyRequest,
+): Promise<{ message: string; invitation_verification_token: string }> {
+  const res = await apiClient.post<{ message: string; invitation_verification_token: string }>(
+    '/api/parents/verify-invitation-otp/',
+    payload,
     { withCredentials: false }
   );
   return res.data;
@@ -68,5 +92,3 @@ export async function restoreSession(): Promise<AuthResponse | null> {
     return null;
   }
 }
-
-export const login = verifyOtp;

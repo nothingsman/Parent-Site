@@ -17,7 +17,16 @@ import { getMessages, sendMessage } from '../messageService';
 import { getNotifications } from '../notificationService';
 import { getSchedule } from '../scheduleService';
 import { getCurrentCalendarDocument } from '../calendarService';
-import { verifyOtp, requestOtp, completeParentInvitation, refreshToken, logout, getAccessToken } from '../authService';
+import {
+  login,
+  requestOtp,
+  requestInvitationOtp,
+  verifyInvitationOtp,
+  completeParentInvitation,
+  refreshToken,
+  logout,
+  getAccessToken,
+} from '../authService';
 import { getUserMe, getParentMe, getMyStudents } from '../parentService';
 
 const BASE = 'http://localhost:4000';
@@ -581,13 +590,13 @@ describe('calendarService', () => {
 
 // ── authService ───────────────────────────────────────────────────────────────
 describe('authService', () => {
-  it('verifyOtp stores access token and returns mapped AuthResponse', async () => {
+  it('login stores access token and returns mapped AuthResponse', async () => {
     server.use(
-      http.post(`${BASE}/auth/otp/verify/`, () =>
+      http.post(`${BASE}/auth/jwt/create/`, () =>
         HttpResponse.json({ access: 'tok123', refresh: 'ref123' })
       )
     );
-    const result = await verifyOtp({ phone_number: '+251900000000', otp_code: '123456' });
+    const result = await login({ phone_number: '+251900000000', password: 'secure-password' });
     expect(result.accessToken).toEqual('tok123');
     expect(getAccessToken()).toBe('tok123');
   });
@@ -598,10 +607,30 @@ describe('authService', () => {
     expect(result.message).toContain('OTP sent');
   });
 
+  it('requestInvitationOtp calls invitation otp endpoint', async () => {
+    server.use(http.post(`${BASE}/api/parents/request-invitation-otp/`, () => HttpResponse.json({ message: 'OTP sent successfully.' })));
+    const result = await requestInvitationOtp({ uid: 'u', token: 't' });
+    expect(result.message).toContain('OTP sent');
+  });
+
+  it('verifyInvitationOtp calls invitation verify endpoint', async () => {
+    server.use(http.post(`${BASE}/api/parents/verify-invitation-otp/`, () => HttpResponse.json({
+      message: 'OTP verified successfully.',
+      invitation_verification_token: 'verify-token',
+    })));
+    const result = await verifyInvitationOtp({ uid: 'u', token: 't', otp_code: '123456' });
+    expect(result.invitation_verification_token).toEqual('verify-token');
+  });
+
   it('completeParentInvitation calls complete endpoint', async () => {
-    server.use(http.post(`${BASE}/api/parents/complete-invitation/`, () => HttpResponse.json({ message: 'Parent account activated successfully.' })));
-    const result = await completeParentInvitation({ uid: 'u', token: 't' });
-    expect(result.message).toContain('activated');
+    server.use(http.post(`${BASE}/api/parents/complete-invitation/`, () => HttpResponse.json({ message: 'Password set and parent account activated successfully.' })));
+    const result = await completeParentInvitation({
+      uid: 'u',
+      token: 't',
+      new_password: 'new-secure-password',
+      invitation_verification_token: 'verify-token',
+    });
+    expect(result.message).toContain('Password set');
   });
 
   it('refreshToken updates access token', async () => {
