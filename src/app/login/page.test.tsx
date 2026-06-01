@@ -1,10 +1,13 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
+
+(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 import { createRoot, Root } from 'react-dom/client';
 import LoginPage from './page';
 
 const pushMock = vi.fn();
+const replaceMock = vi.fn();
 const loginMock = vi.fn();
 const getUserMeMock = vi.fn();
 const getParentMeMock = vi.fn();
@@ -13,10 +16,16 @@ const getChildrenMock = vi.fn();
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: pushMock,
+    replace: replaceMock,
   }),
 }));
 
+const getAccessTokenMock = vi.fn(() => null);
+const restoreSessionMock = vi.fn(async () => null);
+
 vi.mock('@/services/authService', () => ({
+  getAccessToken: () => getAccessTokenMock(),
+  restoreSession: () => restoreSessionMock(),
   login: (...args: unknown[]) => loginMock(...args),
 }));
 
@@ -34,8 +43,17 @@ function setInputValue(input: Element | null | undefined, value: string) {
   if (!element) return;
   act(() => {
     element.value = value;
-    element.dispatchEvent(new Event('input', { bubbles: true }));
+
+    const InputEvt = (globalThis as unknown as { InputEvent?: typeof InputEvent }).InputEvent;
+    const inputEvent = InputEvt
+      ? new InputEvt('input', { bubbles: true, data: value, inputType: 'insertText' } as InputEventInit)
+      : new Event('input', { bubbles: true });
+
+    element.dispatchEvent(inputEvent);
+    element.dispatchEvent(new Event('beforeinput', { bubbles: true }));
+    element.dispatchEvent(new Event('keyup', { bubbles: true }));
     element.dispatchEvent(new Event('change', { bubbles: true }));
+    element.dispatchEvent(new Event('blur', { bubbles: true }));
   });
 }
 
@@ -82,9 +100,10 @@ describe('LoginPage', () => {
 
     ({ container, root } = renderPage());
 
-    const inputs = container?.querySelectorAll('input');
-    setInputValue(inputs?.[0], '+251911111111');
-    setInputValue(inputs?.[1], 'secure-password');
+    
+    setInputValue(container?.querySelector('#phone'), '+251911111111');
+    setInputValue(container?.querySelector('#password'), 'secure-password');
+    setInputValue(container?.querySelector('#password'), 'secure-password');
 
     await act(async () => {
       container?.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
@@ -107,9 +126,8 @@ describe('LoginPage', () => {
 
     ({ container, root } = renderPage());
 
-    const inputs = container?.querySelectorAll('input');
-    setInputValue(inputs?.[0], '+251900000000');
-    setInputValue(inputs?.[1], 'bad-password');
+    setInputValue(container?.querySelector('#phone'), '+251900000000');
+    setInputValue(container?.querySelector('#password'), 'bad-password');
 
     await act(async () => {
       container?.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
@@ -124,9 +142,8 @@ describe('LoginPage', () => {
 
     ({ container, root } = renderPage());
 
-    const inputs = container?.querySelectorAll('input');
-    setInputValue(inputs?.[0], '+251900000000');
-    setInputValue(inputs?.[1], 'bad-password');
+    setInputValue(container?.querySelector('#phone'), '+251900000000');
+    setInputValue(container?.querySelector('#password'), 'bad-password');
 
     await act(async () => {
       container?.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));

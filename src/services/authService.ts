@@ -133,6 +133,18 @@ export async function resetPassword(email: string): Promise<void> {
   await apiClient.post('/auth/users/reset_password/', { email });
 }
 
+export async function resetPasswordConfirm(
+  uid: string,
+  token: string,
+  newPassword: string,
+): Promise<void> {
+  await apiClient.post('/auth/users/reset_password_confirm/', {
+    uid,
+    token,
+    new_password: newPassword,
+  });
+}
+
 export async function restoreSession(): Promise<AuthResponse | null> {
   try {
     const newToken = await refreshToken();

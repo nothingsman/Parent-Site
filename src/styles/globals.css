@@ -476,3 +476,29 @@
   font-family: inherit;
   padding: 8px 10px 8px 0;
 }
+
+/* Prevent the country selector from causing horizontal overflow on very small screens.
+   Some mobile browsers can lay out the native <select> dropdown in a way that induces
+   a horizontal scroll area; clamping widths reduces the chance of the control rendering
+   partially off-screen. */
+@media (max-width: 420px) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  .phone-input-compact,
+  .phone-input-compact .PhoneInput {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .phone-input-compact .PhoneInputCountry {
+    max-width: 40%;
+    padding-left: 6px;
+  }
+
+  .phone-input-compact .PhoneInputInput {
+    font-size: 13px;
+  }
+}

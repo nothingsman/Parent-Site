@@ -1,22 +1,171 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState, useDeferredValue } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { getAccessToken, login, restoreSession } from '@/services/authService';
 import { getChildren } from '@/services/childService';
 import { getApiFieldError, getApiFormError } from '@/lib/apiErrors';
 import { getParentMe, getUserMe } from '@/services/parentService';
-import { AlertCircle, Loader2, Lock, Eye, EyeOff } from 'lucide-react';
-import PhoneInput from 'react-phone-number-input';
-import 'react-phone-number-input/style.css';
+import { AlertCircle, Loader2, Lock, Eye, EyeOff, Search, X } from 'lucide-react';
+import {
+  getCountries,
+  getCountryCallingCode,
+  isSupportedCountry,
+  type Country,
+} from 'react-phone-number-input';
+import en from 'react-phone-number-input/locale/en';
 import { LegalModal, TermsOfService, PrivacyPolicy } from '@/components/LegalModal';
+
+function getCountryLabel(country: Country) {
+  return en[country] ?? country;
+}
+
+function CountryPicker({
+  country,
+  onChange,
+  disabled,
+}: {
+  country: Country;
+  onChange: (country: Country) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const deferredQuery = useDeferredValue(query);
+
+  const countries = useMemo(() => {
+    return getCountries()
+      .filter((c): c is Country => isSupportedCountry(c))
+      .map((c) => {
+        const name = getCountryLabel(c);
+        const code = getCountryCallingCode(c);
+        return { country: c, name, code };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = deferredQuery.trim().toLowerCase();
+    if (!q) return countries;
+    return countries.filter((c) => {
+      return (
+        c.name.toLowerCase().includes(q) ||
+        c.country.toLowerCase().includes(q) ||
+        (`+${c.code}`).includes(q)
+      );
+    });
+  }, [countries, deferredQuery]);
+
+  const active = useMemo(() => {
+    const code = getCountryCallingCode(country);
+    return {
+      country,
+      name: getCountryLabel(country),
+      code,
+    };
+  }, [country]);
+
+  return (
+    <>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+        className="shrink-0 flex items-center gap-2 rounded-lg px-2 py-1.5 bg-white/0 hover:bg-white/50 transition border border-transparent focus:outline-none focus:ring-2 focus:ring-[#1A237E]/20 disabled:opacity-60"
+        aria-label="Select country"
+      >
+        <span className="text-xs font-bold text-slate-700">{active.country}</span>
+        <span className="text-xs font-semibold text-slate-500">+{active.code}</span>
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60]"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="absolute inset-0 bg-slate-900/40" onClick={() => setOpen(false)} />
+
+            <motion.div
+              initial={{ y: 24, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 24, opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="absolute left-0 right-0 bottom-0 mx-auto w-full max-w-md rounded-t-2xl bg-white shadow-2xl border border-slate-200"
+            >
+              <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-sm font-bold text-slate-900">Select country</h2>
+                  <p className="text-xs text-slate-500 truncate">{active.name} (+{active.code})</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="w-10 h-10 rounded-full hover:bg-slate-50 flex items-center justify-center text-slate-500"
+                  aria-label="Close"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search by country or code…"
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:border-[#1A237E] focus:bg-white text-sm"
+                  />
+                </div>
+
+                <div className="mt-3 max-h-[55vh] overflow-y-auto rounded-xl border border-slate-100">
+                  {filtered.map((c) => (
+                    <button
+                      key={c.country}
+                      type="button"
+                      onClick={() => {
+                        onChange(c.country);
+                        setOpen(false);
+                      }}
+                      className={
+                        'w-full text-left px-3 py-2.5 flex items-center justify-between gap-3 hover:bg-slate-50 ' +
+                        (c.country === country ? 'bg-[#f0f4ff]' : '')
+                      }
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-slate-900 truncate">{c.name}</div>
+                        <div className="text-xs text-slate-500">{c.country}</div>
+                      </div>
+                      <div className="text-sm font-bold text-slate-700 shrink-0">+{c.code}</div>
+                    </button>
+                  ))}
+                  {filtered.length === 0 && (
+                    <div className="px-3 py-6 text-center text-sm text-slate-500">No matches.</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="h-[env(safe-area-inset-bottom)]" />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
+  const [country, setCountry] = useState<Country>('ET');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -45,26 +194,53 @@ export default function LoginPage() {
     };
   }, [router]);
 
+  function onCountryChange(next: Country) {
+    const prevCode = getCountryCallingCode(country);
+    const nextCode = getCountryCallingCode(next);
+
+    setCountry(next);
+
+    setPhoneNumber((current) => {
+      const trimmed = current.trim();
+      if (!trimmed) {
+        return `+${nextCode}`;
+      }
+      if (trimmed === `+${prevCode}`) {
+        return `+${nextCode}`;
+      }
+      if (trimmed.startsWith(`+${prevCode}`)) {
+        return `+${nextCode}${trimmed.slice(String(`+${prevCode}`).length)}`;
+      }
+      return current;
+    });
+  }
+
   async function onLogin(event: FormEvent) {
     event.preventDefault();
     setError(null);
     setIsSubmitting(true);
 
     try {
-      await login({ phone_number: phoneNumber.trim(), password });
+      const form = event.currentTarget as HTMLFormElement;
+      const formPhone = (form.elements.namedItem('phone_number') as HTMLInputElement | null)?.value;
+      const formPassword = (form.elements.namedItem('password') as HTMLInputElement | null)?.value;
+
+      await login({ phone_number: (formPhone ?? phoneNumber).trim(), password: formPassword ?? password });
       await Promise.allSettled([getUserMe(), getParentMe(), getChildren()]);
       router.push('/');
     } catch (loginError) {
       setError(
-        getApiFieldError(loginError, 'phone_number')
-        ?? getApiFieldError(loginError, 'password')
-        ?? getApiFormError(loginError)
-        ?? 'Login failed. Please check your phone number and password.',
+        getApiFieldError(loginError, 'phone_number') ??
+          getApiFieldError(loginError, 'password') ??
+          getApiFormError(loginError) ??
+          'Login failed. Please check your phone number and password.',
       );
     } finally {
       setIsSubmitting(false);
     }
   }
+
+  const placeholderCode = getCountryCallingCode(country);
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
@@ -102,16 +278,10 @@ export default function LoginPage() {
 
       <div className="flex-1 flex items-center justify-center p-6 sm:p-8 lg:p-12 bg-white">
         <div className="w-full max-w-md">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <div className="mb-8">
               <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-2">Parent login</h1>
-              <p className="text-slate-600">
-                Use your registered phone number to sign in.
-              </p>
+              <p className="text-slate-600">Use your registered phone number to sign in.</p>
             </div>
 
             {error && (
@@ -129,14 +299,30 @@ export default function LoginPage() {
                   Phone Number
                 </label>
                 <div className="relative">
-                  <div className="w-full phone-input-compact rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm transition-all focus-within:border-[#1A237E] focus-within:bg-white">
-                    <PhoneInput
-                      international
-                      defaultCountry="ET"
-                      value={phoneNumber || undefined}
-                      onChange={(v) => setPhoneNumber(v ?? '')}
-                      placeholder="+251 9XX XXX XXX"
-                    />
+                  <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-2 py-2 text-sm transition-all focus-within:border-[#1A237E] focus-within:bg-white">
+                    <div className="flex items-center gap-2">
+                      <CountryPicker country={country} onChange={onCountryChange} disabled={isSubmitting} />
+                      <div className="h-6 w-px bg-slate-200" />
+                      <input
+                        id="phone"
+                        name="phone_number"
+                        type="tel"
+                        inputMode="tel"
+                        autoComplete="tel"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        onFocus={() => {
+                          setPhoneNumber((current) => {
+                            const trimmed = current.trim();
+                            if (trimmed) return current;
+                            return `+${placeholderCode}`;
+                          });
+                        }}
+                        placeholder={`+${placeholderCode} 9XX XXX XXX`}
+                        disabled={isSubmitting}
+                        className="min-w-0 w-full bg-transparent outline-none border-none text-[14px] font-inherit py-2.5 pr-2"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -149,6 +335,7 @@ export default function LoginPage() {
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
                     id="password"
+                    name="password"
                     type={showPassword ? 'text' : 'password'}
                     required
                     autoComplete="current-password"
@@ -170,10 +357,7 @@ export default function LoginPage() {
               </div>
 
               <div className="flex justify-end">
-                <a
-                  href="/forgot-password"
-                  className="text-sm font-medium text-[#1A237E] hover:text-blue-800 transition-colors"
-                >
+                <a href="/forgot-password" className="text-sm font-medium text-[#1A237E] hover:text-blue-800 transition-colors">
                   Forgot password?
                 </a>
               </div>
@@ -195,19 +379,11 @@ export default function LoginPage() {
 
               <p className="mt-6 text-center text-xs text-slate-500">
                 By clicking continue, you agree to our{' '}
-                <button
-                  type="button"
-                  onClick={() => setShowTerms(true)}
-                  className="underline hover:text-slate-700 font-medium"
-                >
+                <button type="button" onClick={() => setShowTerms(true)} className="underline hover:text-slate-700 font-medium">
                   Terms of Service
                 </button>{' '}
                 and{' '}
-                <button
-                  type="button"
-                  onClick={() => setShowPrivacy(true)}
-                  className="underline hover:text-slate-700 font-medium"
-                >
+                <button type="button" onClick={() => setShowPrivacy(true)} className="underline hover:text-slate-700 font-medium">
                   Privacy Policy
                 </button>
                 .
