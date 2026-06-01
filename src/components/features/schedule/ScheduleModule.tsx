@@ -6,6 +6,7 @@ import { Child } from '@/types';
 
 export interface ScheduleModuleProps {
   child: Child;
+  dict?: any;
 }
 
 export const ScheduleModule = ({ child }: ScheduleModuleProps) => {

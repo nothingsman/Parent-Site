@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
 import { requestOtp, verifyOtp } from '@/services/authService';
 import { getParentMe, getUserMe } from '@/services/parentService';
@@ -17,9 +17,11 @@ function toFieldError(error: unknown, key: string): string | null {
   return null;
 }
 
-export default function LoginPage() {
+export default function LoginClient({ dict }: { dict: any }) {
   const RESEND_COOLDOWN_SECONDS = 30;
   const router = useRouter();
+  const params = useParams();
+  const lang = params.lang as string;
   const [step, setStep] = useState<Step>('phone');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [otpCode, setOtpCode] = useState('');
@@ -67,7 +69,7 @@ export default function LoginPage() {
       setResendCooldownSeconds(0);
       setStep('otp');
     } catch (requestError) {
-      setError(toFieldError((requestError as { details?: unknown })?.details, 'phone_number') ?? 'Failed to send OTP.');
+      setError(toFieldError((requestError as { details?: unknown })?.details, 'phone_number') ?? dict.login.failedSendOtp);
     } finally {
       setIsSubmitting(false);
     }
@@ -83,7 +85,7 @@ export default function LoginPage() {
       setResendMessage(res.message);
       setResendCooldownSeconds(RESEND_COOLDOWN_SECONDS);
     } catch (resendError) {
-      setError(toFieldError((resendError as { details?: unknown })?.details, 'phone_number') ?? 'Failed to resend OTP.');
+      setError(toFieldError((resendError as { details?: unknown })?.details, 'phone_number') ?? dict.login.failedResendOtp);
     } finally {
       setIsResending(false);
     }
@@ -97,10 +99,10 @@ export default function LoginPage() {
     try {
       await verifyOtp({ phone_number: phoneNumber.trim(), otp_code: otpCode.trim() });
       await Promise.allSettled([getUserMe(), getParentMe(), getChildren()]);
-      router.push('/');
+      router.push(`/${lang}`);
     } catch (verifyError) {
       const otpFieldError = toFieldError((verifyError as { details?: unknown })?.details, 'otp_code');
-      setError(otpFieldError ?? 'Login failed. Please try again.');
+      setError(otpFieldError ?? dict.login.loginFailed);
     } finally {
       setIsSubmitting(false);
     }
@@ -123,8 +125,8 @@ export default function LoginPage() {
               <KeyRound className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h2 className="bg-gradient-to-r from-indigo-900 to-blue-600 bg-clip-text text-2xl leading-tight font-black tracking-tight text-transparent uppercase">Kelem Co.</h2>
-              <p className="mt-1 text-xs font-bold tracking-widest text-slate-500 uppercase">Parent Portal</p>
+              <h2 className="bg-gradient-to-r from-indigo-900 to-blue-600 bg-clip-text text-2xl leading-tight font-black tracking-tight text-transparent uppercase">{dict.login.kelemCo}</h2>
+              <p className="mt-1 text-xs font-bold tracking-widest text-slate-500 uppercase">{dict.login.parentPortal}</p>
             </div>
           </div>
 
@@ -158,14 +160,14 @@ export default function LoginPage() {
           {step === 'phone' ? (
             <form className="w-full space-y-5" onSubmit={onRequestOtp}>
               <div className="space-y-1.5">
-                <label className="pl-1 text-[10px] font-black tracking-widest text-slate-500 uppercase">Phone Number</label>
+                <label className="pl-1 text-[10px] font-black tracking-widest text-slate-500 uppercase">{dict.login.phoneNumber}</label>
                 <div className="relative flex items-center">
                   <Phone className="pointer-events-none absolute left-4 h-4 w-4 text-slate-500" />
                   <input
                     className="w-full rounded-xl border border-slate-200 bg-white py-3.5 pr-4 pl-12 text-sm font-semibold text-slate-900 transition-all outline-none placeholder:text-slate-400 hover:border-slate-300 focus:border-indigo-900 focus:ring-4 focus:ring-indigo-900/10"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
-                    placeholder="+2519XXXXXXXX"
+                    placeholder={dict.login.phonePlaceholder}
                     disabled={isSubmitting}
                     required
                   />
@@ -173,19 +175,19 @@ export default function LoginPage() {
               </div>
               <button disabled={isSubmitting} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-900 py-4 text-xs font-black tracking-widest text-white uppercase shadow-lg shadow-indigo-900/20 transition-all hover:bg-indigo-950 disabled:cursor-not-allowed disabled:opacity-40">
                 {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                <span>{isSubmitting ? 'Sending...' : 'Request OTP'}</span>
+                <span>{isSubmitting ? dict.login.sending : dict.login.requestOtp}</span>
               </button>
             </form>
           ) : (
             <form className="w-full space-y-5" onSubmit={onVerifyOtp}>
-              <p className="text-center text-xs leading-relaxed font-medium text-slate-500">OTP sent to {phoneNumber}</p>
+              <p className="text-center text-xs leading-relaxed font-medium text-slate-500">{dict.login.otpSentTo.replace('{phoneNumber}', phoneNumber)}</p>
               <div className="space-y-1.5">
-                <label className="pl-1 text-[10px] font-black tracking-widest text-slate-500 uppercase">OTP Code</label>
+                <label className="pl-1 text-[10px] font-black tracking-widest text-slate-500 uppercase">{dict.login.otpCode}</label>
                 <input
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-semibold text-slate-900 transition-all outline-none placeholder:text-slate-400 hover:border-slate-300 focus:border-indigo-900 focus:ring-4 focus:ring-indigo-900/10"
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value)}
-                  placeholder="123456"
+                  placeholder={dict.login.otpPlaceholder}
                   disabled={isSubmitting}
                   required
                 />
@@ -198,14 +200,14 @@ export default function LoginPage() {
                   disabled={isResending || isSubmitting || resendCooldownSeconds > 0}
                   className="text-xs font-black tracking-wider text-indigo-900 uppercase disabled:cursor-not-allowed disabled:text-slate-400"
                 >
-                  {isResending ? 'Resending...' : 'Resend OTP'}
+                  {isResending ? dict.login.resending : dict.login.resendOtp}
                 </button>
-                {resendCooldownSeconds > 0 ? <p className="text-xs text-slate-500">Resend in {resendCooldownSeconds}s</p> : null}
+                {resendCooldownSeconds > 0 ? <p className="text-xs text-slate-500">{dict.login.resendIn.replace('{seconds}', resendCooldownSeconds.toString())}</p> : null}
               </div>
 
               <button disabled={isSubmitting} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-900 py-4 text-xs font-black tracking-widest text-white uppercase shadow-lg shadow-indigo-900/20 transition-all hover:bg-indigo-950 disabled:cursor-not-allowed disabled:opacity-40">
                 {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                <span>{isSubmitting ? 'Verifying...' : 'Verify OTP'}</span>
+                <span>{isSubmitting ? dict.login.verifying : dict.login.verifyOtp}</span>
               </button>
             </form>
           )}

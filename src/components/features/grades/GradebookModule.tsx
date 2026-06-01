@@ -9,6 +9,7 @@ import { getSubjectInitials, getGradeLetter, getGradeBg } from '@/lib/utils';
 
 export interface GradebookModuleProps {
   child: Child;
+  dict?: any;
 }
 
 export const GradebookModule = ({ child }: GradebookModuleProps) => {

@@ -28,6 +28,7 @@ import { getGradeColorClass, getGradeLetter, getProgressBarColor } from "@/lib/g
 
 export interface AnalyticsModuleProps {
   child: Child;
+  dict?: any;
 }
 
 export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {

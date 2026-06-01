@@ -5,6 +5,7 @@ import { Child } from '@/types';
 
 export interface NotificationsModuleProps {
   child: Child;
+  dict?: any;
 }
 
 export const NotificationsModule = ({ child }: NotificationsModuleProps) => {

@@ -5,6 +5,7 @@ import { useMessageThreads } from '@/hooks';
 
 export interface MessagesModuleProps {
   child: Child;
+  dict?: any;
   activeThread: number;
   setActiveThread: (i: number) => void;
 }

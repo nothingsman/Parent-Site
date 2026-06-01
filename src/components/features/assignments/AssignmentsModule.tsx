@@ -9,6 +9,7 @@ import { getGradeBg, getGradeLetter } from '@/lib/utils';
 
 export interface AssignmentsModuleProps {
   child: Child;
+  dict?: any;
 }
 
 interface AssignmentFilters {

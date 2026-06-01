@@ -5,6 +5,7 @@ import { AttendanceView } from './AttendanceView';
 
 export interface AttendanceModuleProps {
   child: Child;
+  dict?: any;
 }
 
 export const AttendanceModule = ({ child }: AttendanceModuleProps) => {
