@@ -1,12 +1,10 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Search, ChevronLeft, Send, Paperclip, User, Wifi, WifiOff, X } from 'lucide-react';
 import { Child } from '@/types';
 import { useMessageThreads } from '@/hooks';
 
 export interface MessagesModuleProps {
   child: Child;
-  activeThread: number;
-  setActiveThread: (i: number) => void;
 }
 
 function formatTime(value: string | null): string {
@@ -23,11 +21,8 @@ function formatTime(value: string | null): string {
 
 export const MessagesModule = ({
   child,
-  activeThread,
-  setActiveThread,
 }: MessagesModuleProps) => {
   const {
-    contacts,
     filteredContacts,
     activeKey,
     activeContact,
@@ -57,26 +52,6 @@ export const MessagesModule = ({
   const activeThreadKeyRef = useRef<string | null>(null);
   const [showScrollDown, setShowScrollDown] = useState(false);
 
-  const activeIndex = useMemo(
-    () => contacts.findIndex((contact) => contact.key === activeKey),
-    [contacts, activeKey]
-  );
-
-  React.useEffect(() => {
-    if (activeIndex >= 0 && activeIndex !== activeThread) {
-      setActiveThread(activeIndex);
-    }
-  }, [activeIndex, activeThread, setActiveThread]);
-
-  React.useEffect(() => {
-    if (activeThread >= 0 && activeThread < contacts.length) {
-      const next = contacts[activeThread];
-      if (next && next.key !== activeKey) {
-        setActiveKey(next.key);
-      }
-    }
-  }, [activeThread, contacts, activeKey, setActiveKey]);
-
   const scrollToBottom = useCallback((smooth = true) => {
     messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
   }, []);
@@ -85,14 +60,15 @@ export const MessagesModule = ({
     const container = messagesContainerRef.current;
     if (!container) return;
     const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-    setShowScrollDown(distanceFromBottom > 200);
+    const nextShowScrollDown = distanceFromBottom > 200;
+    setShowScrollDown((current) => current === nextShowScrollDown ? current : nextShowScrollDown);
   }, []);
 
   React.useEffect(() => {
     if (!activeContact?.key) return;
     if (activeThreadKeyRef.current !== activeContact.key) {
       activeThreadKeyRef.current = activeContact.key;
-      setShowScrollDown(false);
+      setShowScrollDown((current) => current ? false : current);
       scrollToBottom(false);
       return;
     }
@@ -101,6 +77,18 @@ export const MessagesModule = ({
       scrollToBottom(false);
     }
   }, [activeContact?.key, activeMessages.length, scrollToBottom, showScrollDown]);
+
+  React.useEffect(() => {
+    setMobileView((current) => current === 'list' ? current : 'list');
+    setComposerText((current) => current ? '' : current);
+    setSelectedFile((current) => current ? null : current);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    setShowScrollDown((current) => current ? false : current);
+    activeThreadKeyRef.current = null;
+    clearAttachment();
+  }, [child.id, clearAttachment]);
 
   const statusLabel =
     websocketState === 'connected'
@@ -256,22 +244,24 @@ export const MessagesModule = ({
 
                   return (
                     <div key={message.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm ${isOwn ? 'bg-[#3949AB] text-white' : 'bg-white text-slate-900'}`}>
-                        {message.text && <p className="whitespace-pre-wrap text-sm">{message.text}</p>}
-                        {attachment && (
-                          <a
-                            href={attachment.download_url ?? '#'}
-                            target="_blank"
-                            rel="noreferrer"
-                            className={`mt-3 block rounded-xl border px-3 py-2 text-sm ${isOwn ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`}
-                          >
-                            <p className="truncate font-semibold">{attachment.file_name}</p>
-                            <p className={`mt-1 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
-                              {attachment.content_type}
-                            </p>
-                          </a>
-                        )}
-                        <div className={`mt-3 flex items-center justify-end gap-2 text-[11px] ${isOwn ? 'text-white/75' : 'text-slate-400'}`}>
+                      <div className={`max-w-[85%] ${isOwn ? '' : 'min-w-0'}`}>
+                        <div className={`rounded-2xl px-4 py-3 shadow-sm ${isOwn ? 'bg-[#3949AB] text-white' : 'bg-white text-slate-900'}`}>
+                          {message.text && <p className="whitespace-pre-wrap text-sm">{message.text}</p>}
+                          {attachment && (
+                            <a
+                              href={attachment.download_url ?? '#'}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={`mt-3 block rounded-xl border px-3 py-2 text-sm ${isOwn ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`}
+                            >
+                              <p className="truncate font-semibold">{attachment.file_name}</p>
+                              <p className={`mt-1 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
+                                {attachment.content_type}
+                              </p>
+                            </a>
+                          )}
+                        </div>
+                        <div className={`mt-2 flex items-center gap-2 px-1 text-[11px] ${isOwn ? 'justify-end' : 'justify-start'} text-slate-400`}>
                           <span>{formatTime(message.created_at)}</span>
                           {seen && <span>Seen</span>}
                         </div>

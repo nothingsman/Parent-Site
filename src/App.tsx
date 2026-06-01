@@ -68,7 +68,6 @@ export default function App() {
   const [activeModule, setActiveModule] = useState("Dashboard");
   const [isChildModalOpen, setIsChildModalOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [activeMessageThread, setActiveMessageThread] = useState(0);
   const [showMoreSheet, setShowMoreSheet] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isPlannerModalOpen, setIsPlannerModalOpen] = useState(false);
@@ -88,6 +87,8 @@ export default function App() {
     queryKey: queryKeys.chatThreads(),
     queryFn: listChatThreads,
     enabled: Boolean(child?.id),
+    refetchInterval: 15000,
+    refetchIntervalInBackground: true,
   });
   const schoolName = branchIdentity?.school_name ?? "School";
   const branchName = branchIdentity?.branch_name ?? child?.branchName ?? "";
@@ -155,7 +156,7 @@ export default function App() {
       case "Assignments": return <AssignmentsModule child={child} />;
       case "Gradebook": return <GradebookModule child={child} />;
       case "Analytics": return <AnalyticsModule child={child} />;
-      case "Messages": return <MessagesModule child={child} activeThread={activeMessageThread} setActiveThread={setActiveMessageThread} />;
+      case "Messages": return <MessagesModule child={child} />;
       case "Notifications": return <NotificationsModule child={child} />;
       case "Schedule": return <ScheduleModule child={child} />;
       default: return <OverviewModule child={child} setActiveModule={setActiveModule} onOpenPlanner={openPlanner} />;
