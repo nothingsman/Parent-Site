@@ -1,12 +1,12 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Search, ChevronLeft, Send, Paperclip, User, Wifi, WifiOff, X } from 'lucide-react';
 import { Child } from '@/types';
 import { useMessageThreads } from '@/hooks';
 
 export interface MessagesModuleProps {
   child: Child;
-  activeThread: number;
-  setActiveThread: (i: number) => void;
+  activeThreadKey: string | null;
+  setActiveThreadKey: (key: string | null) => void;
 }
 
 function formatTime(value: string | null): string {
@@ -21,10 +21,29 @@ function formatTime(value: string | null): string {
   }).format(date);
 }
 
+function formatDateLabel(value: string): string {
+  const date = new Date(value);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function isSameDay(left: string, right: string): boolean {
+  return new Date(left).toDateString() === new Date(right).toDateString();
+}
+
 export const MessagesModule = ({
   child,
-  activeThread,
-  setActiveThread,
+  activeThreadKey,
+  setActiveThreadKey,
 }: MessagesModuleProps) => {
   const {
     contacts,
@@ -57,25 +76,20 @@ export const MessagesModule = ({
   const activeThreadKeyRef = useRef<string | null>(null);
   const [showScrollDown, setShowScrollDown] = useState(false);
 
-  const activeIndex = useMemo(
-    () => contacts.findIndex((contact) => contact.key === activeKey),
-    [contacts, activeKey]
-  );
-
   React.useEffect(() => {
-    if (activeIndex >= 0 && activeIndex !== activeThread) {
-      setActiveThread(activeIndex);
+    if (activeKey && activeKey !== activeThreadKey) {
+      setActiveThreadKey(activeKey);
     }
-  }, [activeIndex, activeThread, setActiveThread]);
+  }, [activeKey, activeThreadKey, setActiveThreadKey]);
 
   React.useEffect(() => {
-    if (activeThread >= 0 && activeThread < contacts.length) {
-      const next = contacts[activeThread];
-      if (next && next.key !== activeKey) {
+    if (activeThreadKey && activeThreadKey !== activeKey) {
+      const next = contacts.find((contact) => contact.key === activeThreadKey);
+      if (next) {
         setActiveKey(next.key);
       }
     }
-  }, [activeThread, contacts, activeKey, setActiveKey]);
+  }, [activeThreadKey, contacts, activeKey, setActiveKey]);
 
   const scrollToBottom = useCallback((smooth = true) => {
     messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
@@ -121,8 +135,8 @@ export const MessagesModule = ({
   };
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-white">
-      <div className={`w-full md:w-[320px] shrink-0 border-r border-slate-100 flex-col ${mobileView === 'list' ? 'flex' : 'hidden md:flex'}`}>
+    <div className="flex h-full min-h-0 w-full overflow-hidden bg-white">
+      <div className={`w-full md:w-[320px] shrink-0 border-r border-slate-100 flex-col min-h-0 ${mobileView === 'list' ? 'flex' : 'hidden md:flex'}`}>
         <div className="border-b border-slate-100 p-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-bold tracking-tight text-slate-900">Messages</h2>
@@ -142,7 +156,7 @@ export const MessagesModule = ({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+        <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-100">
           {filteredContacts.map((contact) => {
             const isActive = contact.key === activeKey;
             return (
@@ -187,7 +201,7 @@ export const MessagesModule = ({
         </div>
       </div>
 
-      <div className={`flex-1 flex-col ${mobileView === 'thread' ? 'flex' : 'hidden md:flex'}`}>
+      <div className={`flex-1 min-h-0 flex-col ${mobileView === 'thread' ? 'flex' : 'hidden md:flex'}`}>
         {activeContact ? (
           <>
             <div className="flex items-center justify-between border-b border-slate-100 bg-white p-5">
@@ -220,7 +234,7 @@ export const MessagesModule = ({
             <div
               ref={messagesContainerRef}
               onScroll={handleScroll}
-              className="relative flex-1 overflow-y-auto bg-slate-50/70 p-5"
+              className="relative flex-1 min-h-0 overflow-y-auto bg-slate-50/70 p-5"
             >
               {!activeContact.existingThreadId && activeMessages.length === 0 && (
                 <div className="mb-4 rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-700">
@@ -246,37 +260,67 @@ export const MessagesModule = ({
                 </div>
               )}
 
-              <div className="space-y-4">
-                {activeMessages.map((message) => {
-                  const isOwn = message.sender_id === currentUserId;
+              <div className="space-y-1">
+                {activeMessages.map((message, index) => {
+                  const isOwn = message.sender === 'parent';
                   const attachment = message.attachment ? attachmentMetaById[message.attachment] : null;
                   const seen = !isOwn
                     ? false
                     : message.read_by_ids.some((readerId) => readerId !== currentUserId);
+                  const previousMessage = index > 0 ? activeMessages[index - 1] : null;
+                  const showDateSeparator =
+                    !previousMessage || !isSameDay(previousMessage.created_at, message.created_at);
+                  const showAvatar = !isOwn && (!previousMessage || previousMessage.sender !== message.sender);
 
                   return (
-                    <div key={message.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm ${isOwn ? 'bg-[#3949AB] text-white' : 'bg-white text-slate-900'}`}>
-                        {message.text && <p className="whitespace-pre-wrap text-sm">{message.text}</p>}
-                        {attachment && (
-                          <a
-                            href={attachment.download_url ?? '#'}
-                            target="_blank"
-                            rel="noreferrer"
-                            className={`mt-3 block rounded-xl border px-3 py-2 text-sm ${isOwn ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`}
-                          >
-                            <p className="truncate font-semibold">{attachment.file_name}</p>
-                            <p className={`mt-1 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
-                              {attachment.content_type}
-                            </p>
-                          </a>
+                    <React.Fragment key={message.id}>
+                      {showDateSeparator && (
+                        <div className="flex items-center gap-3 py-3">
+                          <div className="flex-1 border-t border-slate-200" />
+                          <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                            {formatDateLabel(message.created_at)}
+                          </span>
+                          <div className="flex-1 border-t border-slate-200" />
+                        </div>
+                      )}
+                      <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${showAvatar ? 'mt-3' : 'mt-1'}`}>
+                        {!isOwn && (
+                          <div className={`mr-2 flex shrink-0 items-end ${showAvatar ? '' : 'invisible'}`}>
+                            <div className={`flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold text-white ${activeContact.avatarBg}`}>
+                              {activeContact.teacherInitials}
+                            </div>
+                          </div>
                         )}
-                        <div className={`mt-3 flex items-center justify-end gap-2 text-[11px] ${isOwn ? 'text-white/75' : 'text-slate-400'}`}>
-                          <span>{formatTime(message.created_at)}</span>
-                          {seen && <span>Seen</span>}
+                        <div className={`max-w-[80%] ${isOwn ? '' : 'min-w-0'}`}>
+                          <div className={`rounded-2xl px-4 py-3 shadow-sm ${isOwn ? 'bg-[#3949AB] text-white' : 'bg-white text-slate-900'}`}>
+                            {message.text && <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.text}</p>}
+                            {attachment && (
+                              <a
+                                href={attachment.download_url ?? '#'}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={`mt-3 block rounded-xl border px-3 py-2 text-sm ${isOwn ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`}
+                              >
+                                <p className="truncate font-semibold">{attachment.file_name}</p>
+                                <p className={`mt-1 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
+                                  {attachment.content_type}
+                                </p>
+                              </a>
+                            )}
+                          </div>
+                          <div className={`mt-2 flex items-center gap-2 px-1 text-[10px] text-slate-400 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                            <span>{formatTime(message.created_at)}</span>
+                            {isOwn ? (
+                              <span>
+                                {seen
+                                    ? 'Seen'
+                                    : 'Sent'}
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    </React.Fragment>
                   );
                 })}
                 <div ref={messagesEndRef} />
