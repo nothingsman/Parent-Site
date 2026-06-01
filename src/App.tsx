@@ -8,6 +8,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useChildren } from "@/hooks";
 import { useBranchIdentity } from "@/hooks/useBranchIdentity";
 import { getParentMe } from "@/services/parentService";
+import { listChatThreads } from "@/services/messageService";
+import { queryKeys } from "@/lib/queryKeys";
 import {
   LayoutDashboard,
   BarChart3,
@@ -82,6 +84,11 @@ export default function App() {
 
   const child = children[selectedChildIndex];
   const { data: branchIdentity } = useBranchIdentity(child?.branchId);
+  const { data: chatThreads = [] } = useQuery({
+    queryKey: queryKeys.chatThreads(),
+    queryFn: listChatThreads,
+    enabled: Boolean(child?.id),
+  });
   const schoolName = branchIdentity?.school_name ?? "School";
   const branchName = branchIdentity?.branch_name ?? child?.branchName ?? "";
   const parentName = getParentDisplayName(parentProfile);
@@ -128,7 +135,9 @@ export default function App() {
   }
 
   const badges = {
-    Messages: child.messages.filter((m) => m.unread).length,
+    Messages: chatThreads
+      .filter((thread) => thread.student === child.id)
+      .reduce((sum, thread) => sum + thread.unread_count, 0),
     Notifications: child.notifications.filter((n) => !n.read).length,
     Assignments: child.assignments.filter((a) => a.status === "due").length,
   };

@@ -10,7 +10,7 @@ import {
   sendChatMessage,
 } from '@/services/messageService';
 import { getMediaFile, uploadFileToMedia } from '@/services/mediaService';
-import { getAccessToken } from '@/services/authService';
+import { ensureAccessToken } from '@/services/authService';
 import { queryKeys } from '@/lib/queryKeys';
 import type { MediaFileResponse } from '@/types/api';
 import type { Child } from '@/types';
@@ -60,6 +60,26 @@ function normalizeAttachmentError(message: string): string {
   return message;
 }
 
+function mergeMessages(
+  existing: ChatMessage[],
+  incoming: ChatMessage[]
+): ChatMessage[] {
+  const byId = new Map<string, ChatMessage>();
+
+  for (const message of existing) {
+    byId.set(message.id, message);
+  }
+
+  for (const message of incoming) {
+    byId.set(message.id, message);
+  }
+
+  return [...byId.values()].sort(
+    (left, right) =>
+      new Date(left.created_at).getTime() - new Date(right.created_at).getTime()
+  );
+}
+
 export interface MessageContact extends DraftChatContact {
   unreadCount: number;
   updatedAt: string | null;
@@ -87,6 +107,7 @@ export interface UseMessageThreadsReturn {
   sendMessage: (params: { text: string; file?: File | null }) => Promise<boolean>;
   clearAttachment: () => void;
   attachmentMetaById: Record<string, MediaFileResponse>;
+  unreadTotal: number;
 }
 
 export function useMessageThreads(child: Child): UseMessageThreadsReturn {
@@ -266,6 +287,10 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
 
   const activeThreadId = activeContact?.existingThreadId ?? null;
   const activeMessages = activeThreadId ? messageMap[activeThreadId] ?? [] : [];
+  const unreadTotal = useMemo(
+    () => contacts.reduce((sum, contact) => sum + contact.unreadCount, 0),
+    [contacts]
+  );
   const messagesLoading = Boolean(
     activeContact &&
       ((activeThreadId && !(activeThreadId in messageMap)) ||
@@ -313,7 +338,10 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
       });
       setMessageMap((current) => ({
         ...current,
-        [response.thread!.id]: response.messages,
+        [response.thread!.id]: mergeMessages(
+          current[response.thread!.id] ?? [],
+          response.messages
+        ),
       }));
 
       if (!existingThreadId) {
@@ -393,18 +421,21 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
       return;
     }
 
-    const token = getAccessToken();
-    if (!token) {
-      setWebsocketState('disconnected');
-      return;
-    }
-
     let reconnectAttempts = 0;
     let disposed = false;
+    let shouldForceRefresh = false;
 
-    const connect = () => {
+    const connect = async () => {
       if (disposed) return;
       setWebsocketState(reconnectAttempts === 0 ? 'connecting' : 'reconnecting');
+      const token = await ensureAccessToken(shouldForceRefresh);
+      shouldForceRefresh = false;
+      if (disposed) return;
+      if (!token) {
+        setWebsocketState('disconnected');
+        return;
+      }
+
       const socket = new WebSocket(buildWebsocketUrl(activeThreadId, token));
       socketRef.current = socket;
 
@@ -422,12 +453,11 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
           if (payload.event === 'message.created') {
             setMessageMap((current) => {
               const existing = current[payload.thread_id] ?? [];
-              if (existing.some((message) => message.id === payload.message.id)) {
-                return current;
-              }
+              const nextMessages = mergeMessages(existing, [payload.message]);
+              if (nextMessages.length === existing.length) return current;
               return {
                 ...current,
-                [payload.thread_id]: [...existing, payload.message],
+                [payload.thread_id]: nextMessages,
               };
             });
             queryClient.setQueryData<ChatThread[]>(
@@ -474,9 +504,10 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
         }
       };
 
-      socket.onclose = () => {
+      socket.onclose = (event) => {
         if (disposed) return;
         setWebsocketState('disconnected');
+        shouldForceRefresh = event.code === 4403;
         reconnectAttempts += 1;
         const delay = Math.min(1000 * 2 ** (reconnectAttempts - 1), 10000);
         reconnectTimerRef.current = window.setTimeout(connect, delay);
@@ -487,7 +518,11 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
       };
     };
 
-    connect();
+    connect().catch(() => {
+      if (!disposed) {
+        setWebsocketState('disconnected');
+      }
+    });
 
     return () => {
       disposed = true;
@@ -569,7 +604,7 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
 
       setMessageMap((current) => ({
         ...current,
-        [thread.id]: [...(current[thread.id] ?? []), message],
+        [thread.id]: mergeMessages(current[thread.id] ?? [], [message]),
       }));
 
       queryClient.setQueryData<ChatThread[]>(
@@ -647,5 +682,6 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
     sendMessage,
     clearAttachment,
     attachmentMetaById,
+    unreadTotal,
   };
 }

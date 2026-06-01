@@ -27,6 +27,10 @@ export function configureApiClient(opts: {
   onServerError = opts.onServerError;
 }
 
+export function notifyUnauthorized(): void {
+  onUnauthorized();
+}
+
 export const apiClient: AxiosInstance = axios.create({
   baseURL: config.apiBaseUrl,
   timeout: config.apiTimeoutMs,
