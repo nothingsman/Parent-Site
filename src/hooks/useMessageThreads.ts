@@ -5,12 +5,12 @@ import { getSectionTeacherAssignments } from '@/services/teacherService';
 import {
   createChatThread,
   listChatThreads,
-  listThreadMessages,
   markThreadRead,
   resolveChatThread,
   sendChatMessage,
 } from '@/services/messageService';
 import { getMediaFile, uploadFileToMedia } from '@/services/mediaService';
+import { ensureAccessToken } from '@/services/authService';
 import { queryKeys } from '@/lib/queryKeys';
 import type { MediaFileResponse } from '@/types/api';
 import type { Child } from '@/types';
@@ -30,6 +30,15 @@ function toInitials(name: string): string {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? '')
     .join('');
+}
+
+function buildWebsocketUrl(threadId: string, token: string): string {
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL as string;
+  const url = new URL(baseUrl);
+  url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+  url.pathname = `/ws/chat/threads/${threadId}/`;
+  url.search = `token=${encodeURIComponent(token)}`;
+  return url.toString();
 }
 
 function formatError(error: unknown, fallback: string): string {
@@ -55,32 +64,9 @@ function mergeMessages(
   existing: ChatMessage[],
   incoming: ChatMessage[]
 ): ChatMessage[] {
-  const persistedIncoming = incoming.filter((message) => !message.id.startsWith('pending_'));
-  const normalizedExisting = existing.filter((message) => {
-    if (!message.id.startsWith('pending_')) return true;
-
-    return !persistedIncoming.some((incomingMessage) => {
-      const senderMismatch =
-        Boolean(message.sender_id)
-        && Boolean(incomingMessage.sender_id)
-        && incomingMessage.sender_id !== message.sender_id;
-      if (senderMismatch) {
-        return false;
-      }
-
-      const sameText = (incomingMessage.text ?? '').trim() === (message.text ?? '').trim();
-      const sameAttachment = incomingMessage.attachment === message.attachment;
-      const createdDelta = Math.abs(
-        new Date(incomingMessage.created_at).getTime() - new Date(message.created_at).getTime()
-      );
-
-      return sameText && sameAttachment && createdDelta < 30000;
-    });
-  });
-
   const byId = new Map<string, ChatMessage>();
 
-  for (const message of normalizedExisting) {
+  for (const message of existing) {
     byId.set(message.id, message);
   }
 
@@ -88,26 +74,11 @@ function mergeMessages(
     byId.set(message.id, message);
   }
 
-  const sortedMessages = [...byId.values()].sort(
+  return [...byId.values()].sort(
     (left, right) =>
       new Date(left.created_at).getTime() - new Date(right.created_at).getTime()
   );
-
-  return sortedMessages.filter((message, index, list) => {
-    if (index === 0) return true;
-    const previous = list[index - 1];
-    const sameSender = previous.sender === message.sender;
-    const sameText = (previous.text ?? '').trim() === (message.text ?? '').trim();
-    const sameAttachment = previous.attachment === message.attachment;
-    const createdDelta = Math.abs(
-      new Date(message.created_at).getTime() - new Date(previous.created_at).getTime()
-    );
-
-    return !(sameSender && sameText && sameAttachment && createdDelta < 2000);
-  });
 }
-
-const LIVE_REFRESH_MS = 2000;
 
 export interface MessageContact extends DraftChatContact {
   unreadCount: number;
@@ -137,19 +108,22 @@ export interface UseMessageThreadsReturn {
   clearAttachment: () => void;
   attachmentMetaById: Record<string, MediaFileResponse>;
   unreadTotal: number;
-  pendingStatusById: Record<string, 'sending' | 'sent'>;
 }
 
 export function useMessageThreads(child: Child): UseMessageThreadsReturn {
   const queryClient = useQueryClient();
+  const reconnectTimerRef = useRef<number | null>(null);
+  const socketRef = useRef<WebSocket | null>(null);
+  const currentUserIdRef = useRef<string | null>(null);
   const pendingReadThreadRef = useRef<string | null>(null);
-  const pendingMessageIdsRef = useRef<Set<string>>(new Set());
-  const pendingClearTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sendError, setSendError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [websocketState, setWebsocketState] = useState<
+    'idle' | 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
+  >('idle');
   const [uploadState, setUploadState] = useState<UploadState>({
     status: 'idle',
     file: null,
@@ -160,7 +134,6 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
   const [messageMap, setMessageMap] = useState<Record<string, ChatMessage[]>>({});
   const [attachmentMetaById, setAttachmentMetaById] = useState<Record<string, MediaFileResponse>>({});
   const [resolvedDraftKeys, setResolvedDraftKeys] = useState<Record<string, true>>({});
-  const [pendingStatusById, setPendingStatusById] = useState<Record<string, 'sending' | 'sent'>>({});
 
   const { data: parentMe } = useQuery({
     queryKey: queryKeys.parentMe(),
@@ -184,24 +157,16 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
   } = useQuery({
     queryKey: queryKeys.chatThreads(),
     queryFn: listChatThreads,
-    refetchInterval: LIVE_REFRESH_MS,
   });
 
   const childThreads = useMemo(
     () => chatThreads.filter((thread) => thread.student === child.id),
     [chatThreads, child.id]
   );
-  const childThreadIds = useMemo(
-    () => childThreads.map((thread) => thread.id),
-    [childThreads]
-  );
 
   useEffect(() => {
-    return () => {
-      pendingClearTimersRef.current.forEach((timer) => clearTimeout(timer));
-      pendingClearTimersRef.current.clear();
-    };
-  }, []);
+    currentUserIdRef.current = userMe?.id ?? null;
+  }, [userMe?.id]);
 
   const contacts = useMemo<MessageContact[]>(() => {
     const threadByTeacherId = new Map(childThreads.map((thread) => [thread.teacher, thread]));
@@ -306,17 +271,6 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
     };
   }, [messageMap, attachmentMetaById]);
 
-  const refreshThreadMessages = useMemo(
-    () => async (threadId: string) => {
-      const messages = await listThreadMessages(threadId);
-      setMessageMap((current) => ({
-        ...current,
-        [threadId]: mergeMessages(current[threadId] ?? [], messages),
-      }));
-    },
-    []
-  );
-
   const filteredContacts = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
     if (!needle) return contacts;
@@ -333,48 +287,15 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
 
   const activeThreadId = activeContact?.existingThreadId ?? null;
   const activeMessages = activeThreadId ? messageMap[activeThreadId] ?? [] : [];
-  const activeThreadLoaded = activeThreadId ? activeThreadId in messageMap : false;
-  const activeDraftResolved = activeContact ? activeContact.key in resolvedDraftKeys : false;
   const unreadTotal = useMemo(
     () => contacts.reduce((sum, contact) => sum + contact.unreadCount, 0),
     [contacts]
   );
   const messagesLoading = Boolean(
     activeContact &&
-      ((activeThreadId && !activeThreadLoaded) ||
-        (!activeThreadId && !activeDraftResolved))
+      ((activeThreadId && !(activeThreadId in messageMap)) ||
+        (!activeThreadId && !resolvedDraftKeys[activeContact.key]))
   );
-
-  useEffect(() => {
-    if (!childThreadIds.length) return;
-    let cancelled = false;
-
-    const refreshMessages = () =>
-      Promise.all(
-        childThreadIds.map(async (threadId) => [threadId, await listThreadMessages(threadId)] as const)
-      )
-        .then((entries) => {
-          if (cancelled) return;
-          setMessageMap((current) => {
-            const next = { ...current };
-            for (const [threadId, messages] of entries) {
-              next[threadId] = mergeMessages(current[threadId] ?? [], messages);
-            }
-            return next;
-          });
-        })
-        .catch(() => undefined);
-
-    refreshMessages().catch(() => undefined);
-    const intervalId = window.setInterval(() => {
-      refreshMessages().catch(() => undefined);
-    }, LIVE_REFRESH_MS);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
-  }, [childThreadIds]);
 
   useEffect(() => {
     let cancelled = false;
@@ -383,7 +304,7 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
       if (!activeContact) return;
 
       const existingThreadId = activeContact.existingThreadId;
-      if (existingThreadId && activeThreadLoaded) return;
+      if (existingThreadId && existingThreadId in messageMap) return;
 
       const response = await resolveChatThread({
         studentId: child.id,
@@ -432,15 +353,7 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
     return () => {
       cancelled = true;
     };
-  }, [
-    activeContact?.key,
-    activeContact?.teacherId,
-    activeContact?.existingThreadId,
-    activeDraftResolved,
-    activeThreadLoaded,
-    child.id,
-    queryClient,
-  ]);
+  }, [activeContact, child.id, messageMap, queryClient]);
 
   useEffect(() => {
     const currentUserId = userMe?.id ?? null;
@@ -451,7 +364,7 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
 
     const hasUnreadIncoming = activeMessages.some(
       (message) =>
-        message.sender !== 'parent' &&
+        message.sender_id !== currentUserId &&
         !message.read_by_ids.includes(currentUserId)
     );
     if (!hasUnreadIncoming || pendingReadThreadRef.current === activeThreadId) return;
@@ -463,7 +376,7 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
           ...current,
           [activeThreadId]: (current[activeThreadId] ?? []).map((message) => {
             if (
-              message.sender === 'parent' ||
+              message.sender_id === currentUserId ||
               message.read_by_ids.includes(currentUserId)
             ) {
               return message;
@@ -493,6 +406,136 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
         pendingReadThreadRef.current = null;
       });
   }, [activeMessages, activeThreadId, queryClient, userMe?.id]);
+
+  useEffect(() => {
+    if (reconnectTimerRef.current) {
+      window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+    if (socketRef.current) {
+      socketRef.current.close();
+      socketRef.current = null;
+    }
+    if (!activeThreadId) {
+      setWebsocketState('idle');
+      return;
+    }
+
+    let reconnectAttempts = 0;
+    let disposed = false;
+    let shouldForceRefresh = false;
+
+    const connect = async () => {
+      if (disposed) return;
+      setWebsocketState(reconnectAttempts === 0 ? 'connecting' : 'reconnecting');
+      const token = await ensureAccessToken(shouldForceRefresh);
+      shouldForceRefresh = false;
+      if (disposed) return;
+      if (!token) {
+        setWebsocketState('disconnected');
+        return;
+      }
+
+      const socket = new WebSocket(buildWebsocketUrl(activeThreadId, token));
+      socketRef.current = socket;
+
+      socket.onopen = () => {
+        reconnectAttempts = 0;
+        setWebsocketState('connected');
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data) as
+            | { event: 'message.created'; thread_id: string; message: ChatMessage }
+            | { event: 'message.read'; thread_id: string; reader_id: string; count: number };
+
+          if (payload.event === 'message.created') {
+            setMessageMap((current) => {
+              const existing = current[payload.thread_id] ?? [];
+              const nextMessages = mergeMessages(existing, [payload.message]);
+              if (nextMessages.length === existing.length) return current;
+              return {
+                ...current,
+                [payload.thread_id]: nextMessages,
+              };
+            });
+            queryClient.setQueryData<ChatThread[]>(
+              queryKeys.chatThreads(),
+              (current = []) =>
+                current.map((thread) => {
+                  if (thread.id !== payload.thread_id) return thread;
+                  const isOwnMessage = payload.message.sender_id === currentUserIdRef.current;
+                  return {
+                    ...thread,
+                    updated_at: payload.message.created_at,
+                    latest_message: payload.message,
+                    unread_count:
+                      thread.id === activeThreadId || isOwnMessage
+                        ? thread.unread_count
+                        : thread.unread_count + 1,
+                  };
+                })
+            );
+          }
+
+          if (payload.event === 'message.read') {
+            setMessageMap((current) => {
+              const threadMessages = current[payload.thread_id] ?? [];
+              return {
+                ...current,
+                [payload.thread_id]: threadMessages.map((message) => {
+                  if (message.sender_id !== currentUserIdRef.current) {
+                    return message;
+                  }
+                  if (message.read_by_ids.includes(payload.reader_id)) {
+                    return message;
+                  }
+                  return {
+                    ...message,
+                    read_by_ids: [...message.read_by_ids, payload.reader_id],
+                  };
+                }),
+              };
+            });
+          }
+        } catch {
+          // Ignore malformed payloads.
+        }
+      };
+
+      socket.onclose = (event) => {
+        if (disposed) return;
+        setWebsocketState('disconnected');
+        shouldForceRefresh = event.code === 4403;
+        reconnectAttempts += 1;
+        const delay = Math.min(1000 * 2 ** (reconnectAttempts - 1), 10000);
+        reconnectTimerRef.current = window.setTimeout(connect, delay);
+      };
+
+      socket.onerror = () => {
+        socket.close();
+      };
+    };
+
+    connect().catch(() => {
+      if (!disposed) {
+        setWebsocketState('disconnected');
+      }
+    });
+
+    return () => {
+      disposed = true;
+      if (reconnectTimerRef.current) {
+        window.clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+      if (socketRef.current) {
+        socketRef.current.close();
+        socketRef.current = null;
+      }
+    };
+  }, [activeThreadId, queryClient]);
 
   async function ensureThread(contact: MessageContact): Promise<ChatThread> {
     if (contact.existingThreadId) {
@@ -559,23 +602,10 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
         attachment: attachmentId || undefined,
       });
 
-      pendingMessageIdsRef.current.add(message.id);
-      setPendingStatusById((current) => {
-        const next = { ...current };
-        next[message.id] = 'sent';
-        return next;
-      });
-      await refreshThreadMessages(thread.id);
-
-      const clearTimer = setTimeout(() => {
-        pendingClearTimersRef.current.delete(message.id);
-        setPendingStatusById((current) => {
-          const next = { ...current };
-          delete next[message.id];
-          return next;
-        });
-      }, 2000);
-      pendingClearTimersRef.current.set(message.id, clearTimer);
+      setMessageMap((current) => ({
+        ...current,
+        [thread.id]: mergeMessages(current[thread.id] ?? [], [message]),
+      }));
 
       queryClient.setQueryData<ChatThread[]>(
         queryKeys.chatThreads(),
@@ -644,7 +674,7 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
     threadsLoading,
     isSending,
     sendError,
-    websocketState: activeThreadId ? 'connected' : 'idle',
+    websocketState,
     uploadState,
     searchTerm,
     setSearchTerm,
@@ -653,6 +683,5 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
     clearAttachment,
     attachmentMetaById,
     unreadTotal,
-    pendingStatusById,
   };
 }

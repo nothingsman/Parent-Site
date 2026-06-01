@@ -68,7 +68,7 @@ export default function App() {
   const [activeModule, setActiveModule] = useState("Dashboard");
   const [isChildModalOpen, setIsChildModalOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [activeMessageThreadKey, setActiveMessageThreadKey] = useState<string | null>(null);
+  const [activeMessageThread, setActiveMessageThread] = useState(0);
   const [showMoreSheet, setShowMoreSheet] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isPlannerModalOpen, setIsPlannerModalOpen] = useState(false);
@@ -82,17 +82,12 @@ export default function App() {
     }
   }, [toastMessage]);
 
-  useEffect(() => {
-    setActiveMessageThreadKey(null);
-  }, [selectedChildIndex]);
-
   const child = children[selectedChildIndex];
   const { data: branchIdentity } = useBranchIdentity(child?.branchId);
   const { data: chatThreads = [] } = useQuery({
     queryKey: queryKeys.chatThreads(),
     queryFn: listChatThreads,
     enabled: Boolean(child?.id),
-    refetchInterval: 2000,
   });
   const schoolName = branchIdentity?.school_name ?? "School";
   const branchName = branchIdentity?.branch_name ?? child?.branchName ?? "";
@@ -140,7 +135,9 @@ export default function App() {
   }
 
   const badges = {
-    Messages: chatThreads.reduce((sum, thread) => sum + thread.unread_count, 0),
+    Messages: chatThreads
+      .filter((thread) => thread.student === child.id)
+      .reduce((sum, thread) => sum + thread.unread_count, 0),
     Notifications: child.notifications.filter((n) => !n.read).length,
     Assignments: child.assignments.filter((a) => a.status === "due").length,
   };
@@ -158,7 +155,7 @@ export default function App() {
       case "Assignments": return <AssignmentsModule child={child} />;
       case "Gradebook": return <GradebookModule child={child} />;
       case "Analytics": return <AnalyticsModule child={child} />;
-      case "Messages": return <MessagesModule child={child} activeThreadKey={activeMessageThreadKey} setActiveThreadKey={setActiveMessageThreadKey} />;
+      case "Messages": return <MessagesModule child={child} activeThread={activeMessageThread} setActiveThread={setActiveMessageThread} />;
       case "Notifications": return <NotificationsModule child={child} />;
       case "Schedule": return <ScheduleModule child={child} />;
       default: return <OverviewModule child={child} setActiveModule={setActiveModule} onOpenPlanner={openPlanner} />;
@@ -201,7 +198,7 @@ export default function App() {
           </div>
         </div>
 
-        <div className={activeModule === "Messages" ? "flex-1 min-h-0 flex flex-col overflow-hidden bg-white animate-fade-in pb-16" : "flex-1 overflow-y-auto px-4 pt-4 pb-24 custom-scrollbar bg-slate-50 animate-fade-in"}>
+        <div className={activeModule === "Messages" ? "flex-1 flex flex-col overflow-hidden bg-white animate-fade-in pb-16" : "flex-1 overflow-y-auto px-4 pt-4 pb-24 custom-scrollbar bg-slate-50 animate-fade-in"}>
           {["Messages", "Analytics"].includes(activeModule) ? renderModule() : <div className="max-w-md mx-auto">{renderModule()}</div>}
         </div>
 
@@ -320,8 +317,8 @@ export default function App() {
           </div>
         </aside>
 
-        <main className="flex-1 min-h-0 flex flex-col min-w-0 bg-slate-50 overflow-hidden relative">
-          <div className={activeModule === "Messages" ? "flex-1 min-h-0 flex flex-col overflow-hidden relative w-full h-full" : "flex-1 overflow-y-auto p-4 md:p-6 lg:p-8"}>
+        <main className="flex-1 flex flex-col min-w-0 bg-slate-50 overflow-hidden relative">
+          <div className={activeModule === "Messages" ? "flex-1 flex flex-col overflow-hidden relative w-full h-full" : "flex-1 overflow-y-auto p-4 md:p-6 lg:p-8"}>
             {activeModule === "Messages" ? renderModule() : <div className="max-w-7xl mx-auto pb-12">{renderModule()}</div>}
           </div>
         </main>

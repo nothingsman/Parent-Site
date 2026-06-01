@@ -1,5 +1,4 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { 
   Star, 
   ClipboardList, 
@@ -16,9 +15,7 @@ import {
 
 import { Card, Badge, SectionLabel } from '@/components/ui';
 import { useConfirmHomework, useTodaysHomework } from '@/hooks';
-import { listChatThreads } from '@/services/messageService';
 import { Child, TodaysHomeworkEntry } from '@/types';
-import { queryKeys } from '@/lib/queryKeys';
 import { getGradeColor, getGradeLetter } from '@/lib/utils';
 
 export interface OverviewModuleProps {
@@ -46,11 +43,6 @@ export const OverviewModule = ({
     isError: isHomeworkError,
     error: homeworkError,
   } = useTodaysHomework(child.id);
-  const { data: chatThreads = [] } = useQuery({
-    queryKey: queryKeys.chatThreads(),
-    queryFn: listChatThreads,
-    refetchInterval: 2000,
-  });
   const confirmHomeworkMutation = useConfirmHomework(child.id);
   const todayLabel = new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
@@ -86,30 +78,6 @@ export const OverviewModule = ({
       day: 'numeric',
       year: 'numeric',
     }).format(new Date(value));
-
-  const recentTeacherMessages = chatThreads
-    .filter((thread) => thread.student === child.id)
-    .sort(
-      (left, right) =>
-        new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime(),
-    )
-    .slice(0, 3)
-    .map((thread) => ({
-      id: thread.id,
-      teacherInitials: 'TE',
-      teacherName: 'Teacher',
-      subject: 'Conversation',
-      preview:
-        thread.latest_message?.text?.trim()
-        || (thread.latest_message?.attachment ? 'Attachment shared' : 'No messages yet'),
-      time: new Intl.DateTimeFormat('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-      }).format(new Date(thread.updated_at)),
-      unread: thread.unread_count > 0,
-    }));
 
   const getHomeworkBadgeVariant = (entry: {
     confirmed: boolean;
@@ -373,7 +341,7 @@ export const OverviewModule = ({
               </button>
             </div>
             <div className="divide-y divide-slate-50">
-              {recentTeacherMessages.map((msg) => (
+              {child.messages.slice(0, 3).map((msg) => (
                 <div
                   key={msg.id}
                   className="py-3 flex items-center gap-3 cursor-pointer hover:bg-slate-50 rounded-lg px-2 -mx-2 transition-colors"
@@ -400,11 +368,6 @@ export const OverviewModule = ({
                   )}
                 </div>
               ))}
-              {recentTeacherMessages.length === 0 && (
-                <div className="py-8 text-center text-sm text-slate-400">
-                  No recent teacher messages.
-                </div>
-              )}
             </div>
           </div>
         </Card>

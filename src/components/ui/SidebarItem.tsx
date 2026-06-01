@@ -38,13 +38,13 @@ export const SidebarItem = ({
         <span className="text-sm font-medium tracking-tight">{label}</span>
       )}
     </div>
-    {!isCollapsed && count !== undefined && count > 0 && (
+    {!isCollapsed && count !== undefined && (
       <span
         className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
           isActive ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
         }`}
       >
-        {count}
+        {count < 10 ? `0${count}` : count}
       </span>
     )}
     {isCollapsed && count !== undefined && count > 0 && (
