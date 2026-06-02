@@ -157,6 +157,7 @@ export interface BranchIdentityResponse {
   branch_name: string;
   school_id: string;
   school_name: string;
+  logo?: string;
 }
 
 export interface SectionTeacherAssignment {

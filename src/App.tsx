@@ -3,12 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { useChildren } from "@/hooks";
 import { useBranchIdentity } from "@/hooks/useBranchIdentity";
 import { getParentMe } from "@/services/parentService";
 import { listChatThreads } from "@/services/messageService";
+import { resolveMediaUrl } from "@/services/branchService";
+import { logout } from "@/services/authService";
 import { queryKeys } from "@/lib/queryKeys";
 import {
   LayoutDashboard,
@@ -28,10 +31,15 @@ import {
   ArrowDown,
   ChevronRight,
   ChevronLeft,
+  User,
+  Settings,
+  LogOut,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 import { SidebarItem, ErrorBoundary } from "@/components/ui";
+import ProfileModal from "@/components/features/profile/ProfileModal";
+import SettingsModal from "@/components/features/settings/SettingsModal";
 import { OverviewModule } from "@/components/features/overview";
 import { GradesModule, GradebookModule } from "@/components/features/grades";
 import { AttendanceModule } from "@/components/features/attendance";
@@ -59,6 +67,7 @@ export function getParentDisplayName(parentProfile?: ParentMeResponse): string {
 }
 
 export default function App() {
+  const router = useRouter();
   const { data: children = [], isLoading, isError, error } = useChildren();
   const { data: parentProfile } = useQuery({
     queryKey: ["parent", "me"],
@@ -72,6 +81,11 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isPlannerModalOpen, setIsPlannerModalOpen] = useState(false);
   const [plannerTab, setPlannerTab] = useState<"weekly" | "academic">("weekly");
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
 
   useEffect(() => {
@@ -81,8 +95,33 @@ export default function App() {
     }
   }, [toastMessage]);
 
+  useEffect(() => {
+    if (!isProfileMenuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!profileMenuRef.current) return;
+      if (!profileMenuRef.current.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", handleClickOutside);
+    return () => window.removeEventListener("mousedown", handleClickOutside);
+  }, [isProfileMenuOpen]);
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace("/login");
+  };
+
   const child = children[selectedChildIndex];
   const { data: branchIdentity } = useBranchIdentity(child?.branchId);
+
+  useEffect(() => {
+    if (!branchIdentity?.logo) {
+      setLogoUrl(null);
+      return;
+    }
+    resolveMediaUrl(branchIdentity.logo).then(setLogoUrl);
+  }, [branchIdentity?.logo]);
   const { data: chatThreads = [] } = useQuery({
     queryKey: queryKeys.chatThreads(),
     queryFn: listChatThreads,
@@ -254,6 +293,24 @@ export default function App() {
                     </button>
                   ))}
                 </div>
+                <div className="border-t border-slate-100 pt-4 space-y-1">
+                  <button onClick={() => { setShowMoreSheet(false); setIsProfileOpen(true); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 cursor-pointer border-none bg-transparent text-left">
+                    <div className="w-9 h-9 rounded-full bg-[#3949AB] flex items-center justify-center text-white font-bold text-xs">{parentInitials}</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-slate-900 truncate">{parentName}</p>
+                      <p className="text-[10px] font-medium text-slate-400">Parent Account</p>
+                    </div>
+                    <User size={16} className="text-slate-400 shrink-0" />
+                  </button>
+                  <button onClick={() => { setShowMoreSheet(false); setIsSettingsOpen(true); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 cursor-pointer border-none bg-transparent text-left">
+                    <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500"><Settings size={16} /></div>
+                    <span className="text-sm font-semibold text-slate-700">Settings</span>
+                  </button>
+                  <button onClick={() => { setShowMoreSheet(false); handleLogout(); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-rose-50 cursor-pointer border-none bg-transparent text-left">
+                    <div className="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500"><LogOut size={16} /></div>
+                    <span className="text-sm font-semibold text-rose-600">Log out</span>
+                  </button>
+                </div>
               </motion.div>
             </div>
           )}
@@ -267,17 +324,29 @@ export default function App() {
             {isSidebarCollapsed ? <ChevronRight size={12} strokeWidth={2.5} /> : <ChevronLeft size={12} strokeWidth={2.5} />}
           </button>
 
-          <div className={`py-5 border-b border-slate-50 ${isSidebarCollapsed ? "px-4 flex justify-center" : "px-6"}`}>
-            {!isSidebarCollapsed && <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Parent Mode</p>}
-            <div className={`flex items-center ${isSidebarCollapsed ? "justify-center" : "gap-2.5"}`}>
-              <div className="w-8 h-8 rounded-lg bg-[#3949AB] flex items-center justify-center text-white shrink-0 shadow-lg shadow-blue-900/20"><GraduationCap size={20} /></div>
+          <div className={`border-b border-slate-100 bg-linear-to-b from-white to-slate-50/30 ${isSidebarCollapsed ? "px-4 pt-5 pb-4 flex justify-center" : "px-4 sm:px-5 pt-5 sm:pt-7 pb-4"}`}>
+            <div className={`flex items-center ${isSidebarCollapsed ? "justify-center" : "gap-3"}`}>
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt={schoolName || "School logo"}
+                  className="w-10 h-10 rounded-xl object-contain bg-white border border-slate-100 shrink-0"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-linear-to-br from-[#1A237E] to-[#3949AB] rounded-xl flex items-center justify-center shadow-md shadow-blue-900/15 shrink-0 ring-1 ring-white/20">
+                  <GraduationCap className="text-white" size={18} strokeWidth={2.5} />
+                </div>
+              )}
               {!isSidebarCollapsed && (
-                <div className="min-w-0">
-                  <h1 className="text-[11px] font-black text-slate-900 uppercase leading-tight tracking-tight truncate">
-                    {schoolName}
-                  </h1>
+                <div className="flex flex-col min-w-0">
+                  <h2 className="text-[12px] font-black uppercase tracking-tight text-slate-800 truncate leading-tight">
+                    {schoolName || "School"}
+                  </h2>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                    Academic Portal
+                  </p>
                   {branchName && (
-                    <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400 truncate mt-1">
+                    <p className="text-[9px] font-semibold text-slate-500 truncate">
                       {branchName}
                     </p>
                   )}
@@ -310,11 +379,57 @@ export default function App() {
             ))}
           </nav>
 
-          <div className={`border-t border-slate-50 ${isSidebarCollapsed ? "p-3 flex justify-center" : "p-4"}`}>
-            <div className={`flex items-center bg-slate-50/50 rounded-xl ${isSidebarCollapsed ? "p-1 justify-center" : "gap-3 p-2"}`}>
+          <div className={`border-t border-slate-50 ${isSidebarCollapsed ? "p-3 flex justify-center" : "p-4"}`} ref={profileMenuRef}>
+            <button
+              type="button"
+              onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+              className={`w-full flex items-center bg-slate-50/50 rounded-xl hover:bg-slate-50 transition cursor-pointer border-none ${isSidebarCollapsed ? "p-1 justify-center" : "gap-3 p-2"}`}
+            >
               <div className="w-10 h-10 rounded-full bg-[#3949AB] flex items-center justify-center text-white font-bold text-sm shadow-sm ring-2 ring-white shrink-0">{parentInitials}</div>
-              {!isSidebarCollapsed && <div><p className="text-xs font-bold text-slate-900 uppercase tracking-tight">{parentName}</p><p className="text-[10px] font-medium text-slate-400">Parent Account</p></div>}
-            </div>
+              {!isSidebarCollapsed && (
+                <>
+                  <div className="flex-1 text-left">
+                    <p className="text-xs font-bold text-slate-900 uppercase tracking-tight">{parentName}</p>
+                    <p className="text-[10px] font-medium text-slate-400">Parent Account</p>
+                  </div>
+                  <ChevronDown size={14} className="text-slate-400" />
+                </>
+              )}
+            </button>
+            {isProfileMenuOpen && (
+              <div className={`mt-2 bg-white border border-slate-100 rounded-xl shadow-lg overflow-hidden ${isSidebarCollapsed ? "absolute bottom-16 left-3 right-3" : ""}`}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileMenuOpen(false);
+                    setIsProfileOpen(true);
+                  }}
+                  className="w-full px-4 py-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer border-none bg-transparent text-left"
+                >
+                  <User size={14} /> View Profile
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileMenuOpen(false);
+                    setIsSettingsOpen(true);
+                  }}
+                  className="w-full px-4 py-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer border-none bg-transparent text-left"
+                >
+                  <Settings size={14} /> Settings
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileMenuOpen(false);
+                    handleLogout();
+                  }}
+                  className="w-full px-4 py-3 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer border-none bg-transparent text-left"
+                >
+                  <LogOut size={14} /> Log out
+                </button>
+              </div>
+            )}
           </div>
         </aside>
 
@@ -377,6 +492,21 @@ export default function App() {
           ?? parentProfile?.organization_ids[0]
         }
         branchId={child.branchId}
+      />
+
+      {/* Profile Modal */}
+      <ProfileModal
+        open={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        profile={parentProfile ?? null}
+        parentName={parentName}
+        parentInitials={parentInitials}
+      />
+
+      {/* Settings Modal */}
+      <SettingsModal
+        open={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
       />
 
       {/* Toast */}

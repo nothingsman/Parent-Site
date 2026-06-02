@@ -1,35 +1,75 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
+@theme {
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, monospace;
+  --color-brand: #1A237E;
+}
+
 :root {
-  --navy: #1a2744;
-  --navy-mid: #2d3f6b;
-  --blue-soft: #e8eef8;
-  --orange: #e87722;
-  --orange-light: #fff4eb;
-  --orange-mid: #fde8d2;
-  --green: #1a8f5c;
-  --green-light: #eaf7f1;
-  --red: #d64545;
-  --red-light: #fdf0f0;
-  --amber: #c97a15;
-  --amber-light: #fef9ec;
-  --amber-mid: #fdefc9;
-  --gray-bg: #f4f5f8;
+  --navy: #1A237E;
+  --navy-mid: #3949AB;
+  --blue-soft: #E8EAF6;
+  --orange: #1A237E;
+  --orange-light: #E8EAF6;
+  --orange-mid: #C5CAE9;
+  --green: #059669;
+  --green-light: #ECFDF5;
+  --red: #DC2626;
+  --red-light: #FEF2F2;
+  --amber: #D97706;
+  --amber-light: #FFFBEB;
+  --amber-mid: #FDE68A;
+  --gray-bg: #F8FAFC;
   --gray-card: #ffffff;
-  --gray-border: #e4e7ef;
-  --gray-muted: #8892a8;
-  --gray-text: #3d4a65;
-  --shadow-sm: 0 1px 3px rgba(26,39,68,0.07), 0 1px 2px rgba(26,39,68,0.04);
-  --shadow-md: 0 4px 12px rgba(26,39,68,0.09), 0 2px 4px rgba(26,39,68,0.05);
+  --gray-border: #E2E8F0;
+  --gray-muted: #94A3B8;
+  --gray-text: #1E293B;
+  --shadow-sm: 0 1px 3px rgba(15,23,42,0.07), 0 1px 2px rgba(15,23,42,0.04);
+  --shadow-md: 0 4px 12px rgba(15,23,42,0.09), 0 2px 4px rgba(15,23,42,0.05);
   --r-sm: 8px;
   --r-md: 12px;
   --r-lg: 16px;
 }
 
+html.high-contrast {
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #e2e8f0;
+  --color-slate-200: #cbd5e1;
+  --color-slate-300: #94a3b8;
+  --color-slate-400: #64748b;
+  --color-slate-500: #475569;
+  --color-slate-600: #1e293b;
+  --color-slate-700: #0f172a;
+  --color-slate-800: #020617;
+  --color-slate-900: #000000;
+  --color-slate-950: #000000;
+  --color-rose-500: #dc2626;
+  --color-emerald-500: #059669;
+  --color-amber-500: #d97706;
+
+  --navy: #000000;
+  --navy-mid: #0f172a;
+  --gray-text: #000000;
+  --gray-muted: #475569;
+  --gray-border: #94a3b8;
+  --gray-bg: #f8fafc;
+  --green: #047857;
+  --red: #b91c1c;
+  --amber: #b45309;
+}
+
+html.reduced-motion *,
+html.reduced-motion *::before,
+html.reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
 /* Base style matching their style sheet but scoped and responsive */
 .attendance-module-container {
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   color: var(--gray-text);
   padding: 2px 0;
 }
@@ -75,7 +115,7 @@
 
 .attendance-alert-banner {
   background: var(--orange-light);
-  border: 1px solid #f5c89a;
+  border: 1px solid #C5CAE9;
   border-left: 3px solid var(--orange);
   border-radius: var(--r-md);
   padding: 14px 18px;
@@ -106,12 +146,12 @@
   border-radius: 10px; background: var(--orange); color: #fff;
 }
 
-.attendance-alert-sub { font-size: 13px; color: #7a5c3a; line-height: 1.5; }
+.attendance-alert-sub { font-size: 13px; color: #475569; line-height: 1.5; }
 
 .attendance-alert-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 
 .attendance-btn {
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   font-size: 13px; font-weight: 500;
   padding: 8px 16px; border-radius: var(--r-sm);
   cursor: pointer; border: none; transition: all 0.15s ease;
@@ -128,10 +168,10 @@
 
 .attendance-btn-primary {
   background: var(--orange); color: #fff;
-  box-shadow: 0 2px 6px rgba(232,119,34,0.3);
+  box-shadow: 0 2px 6px rgba(26,35,126,0.3);
 }
 
-.attendance-btn-primary:hover { background: #d46b18; box-shadow: 0 4px 10px rgba(232,119,34,0.4); }
+.attendance-btn-primary:hover { background: #0F172A; box-shadow: 0 4px 10px rgba(26,35,126,0.4); }
 
 .attendance-stats-grid {
   display: grid;
@@ -247,7 +287,7 @@
 .attendance-progress-label { font-size: 13px; font-weight: 500; color: var(--gray-text); }
 
 .attendance-progress-count {
-  font-size: 12px; font-weight: 600; font-family: 'DM Mono', monospace;
+  font-size: 12px; font-weight: 600; font-family: var(--font-mono), ui-monospace, SFMono-Regular, monospace;
 }
 
 .attendance-progress-count.warn { color: var(--orange); }
@@ -279,7 +319,7 @@
 
 .attendance-log-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--orange); flex-shrink: 0; }
 .attendance-log-text { color: var(--gray-text); flex: 1; }
-.attendance-log-time { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--gray-muted); }
+.attendance-log-time { font-family: var(--font-mono), ui-monospace, SFMono-Regular, monospace; font-size: 11px; color: var(--gray-muted); }
 
 .attendance-ytd-grid {
   display: grid; grid-template-columns: 1fr 1fr;
@@ -404,7 +444,7 @@
 }
 
 .attendance-tab-btn {
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   font-size: 12px; font-weight: 500; padding: 5px 12px;
   border-radius: 6px; border: none; cursor: pointer;
   transition: all 0.15s; color: var(--gray-muted);
