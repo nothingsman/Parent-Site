@@ -17,6 +17,7 @@ import { Card, Badge, SectionLabel } from '@/components/ui';
 import { useConfirmHomework, useTodaysHomework } from '@/hooks';
 import { Child, TodaysHomeworkEntry } from '@/types';
 import { getGradeColor, getGradeLetter } from '@/lib/utils';
+import { useTranslation } from '@/lib/i18n';
 
 export interface OverviewModuleProps {
   child: Child;
@@ -31,6 +32,7 @@ export const OverviewModule = ({
 }: OverviewModuleProps) => {
   const [selectedHomework, setSelectedHomework] =
     React.useState<TodaysHomeworkEntry | null>(null);
+  const { t } = useTranslation();
 
   // Compute absences count
   const absentCount = child.attendance_log.filter(
@@ -92,9 +94,9 @@ export const OverviewModule = ({
     confirmed: boolean;
     status?: string;
   }) => {
-    if (entry.confirmed) return 'Confirmed';
-    if (entry.status === 'missing') return 'Missing';
-    return 'Pending';
+    if (entry.confirmed) return t("overview.confirmed");
+    if (entry.status === 'missing') return t("overview.missing");
+    return t("overview.pending");
   };
 
   const isConfirmingHomework = (assessmentId: string, studentId: string) =>
@@ -155,7 +157,7 @@ export const OverviewModule = ({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         <Card className="p-3 sm:p-4">
           <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.18em] sm:tracking-widest text-slate-400">
-            Overall Grade
+            {t("overview.overallGrade")}
           </p>
           <div className="flex flex-col items-start gap-0.5 mt-1 sm:flex-row sm:items-end sm:gap-2">
             <h2
@@ -164,13 +166,13 @@ export const OverviewModule = ({
               {child.overallAvg}%
             </h2>
             <p className="text-[11px] sm:text-sm text-slate-400 sm:mb-1 leading-tight">
-              {getGradeLetter(child.overallAvg)} Grade
+              {getGradeLetter(child.overallAvg)} {t("overview.grade")}
             </p>
           </div>
         </Card>
         <Card className="p-3 sm:p-4">
           <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.18em] sm:tracking-widest text-slate-400">
-            Attendance
+            {t("overview.attendance")}
           </p>
           <div className="flex flex-col items-start gap-0.5 mt-1 sm:flex-row sm:items-end sm:gap-2">
             <h2
@@ -179,24 +181,24 @@ export const OverviewModule = ({
               {child.attendance}%
             </h2>
             <p className="text-[11px] sm:text-sm text-slate-400 sm:mb-1 leading-tight">
-              {absentCount} absences this term
+              {t("overview.absencesThisTerm", { count: String(absentCount) })}
             </p>
           </div>
         </Card>
         <Card className="p-3 sm:p-4">
           <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.18em] sm:tracking-widest text-slate-400">
-            Assignments Due
+            {t("overview.assignmentsDue")}
           </p>
           <div className="flex flex-col items-start gap-0.5 mt-1 sm:flex-row sm:items-end sm:gap-2">
             <h2 className="text-lg sm:text-2xl font-bold leading-none text-amber-600">
               {child.assignmentsDue}
             </h2>
-            <p className="text-[11px] sm:text-sm text-slate-400 sm:mb-1 leading-tight">this week</p>
+            <p className="text-[11px] sm:text-sm text-slate-400 sm:mb-1 leading-tight">{t("overview.thisWeek")}</p>
           </div>
         </Card>
         <Card className="p-3 sm:p-4">
           <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.18em] sm:tracking-widest text-slate-400">
-            Missing Work
+            {t("overview.missingWork")}
           </p>
           <div className="flex flex-col items-start gap-0.5 mt-1 sm:flex-row sm:items-end sm:gap-2">
             <h2
@@ -205,7 +207,7 @@ export const OverviewModule = ({
               {child.missingWork}
             </h2>
             <p className="text-[11px] sm:text-sm text-slate-400 sm:mb-1 leading-tight">
-              {child.missingWork === 0 ? "All caught up" : "needs attention"}
+              {child.missingWork === 0 ? t("overview.allCaughtUp") : t("overview.needsAttention")}
             </p>
           </div>
         </Card>
@@ -219,9 +221,9 @@ export const OverviewModule = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 border-b border-slate-50 pb-3">
               <div>
                 <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">
-                  Today's Homework
+                  {t("overview.todaysHomework")}
                 </h3>
-                <p className="text-[11px] text-slate-400">Please review assigned work and sign off</p>
+                <p className="text-[11px] text-slate-400">{t("overview.reviewWork")}</p>
               </div>
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50/60 text-indigo-700">
@@ -234,17 +236,17 @@ export const OverviewModule = ({
             <div className="space-y-3.5 my-4">
               {isHomeworkLoading && (
                 <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 text-sm font-medium text-slate-500">
-                  Loading today's homework...
+                  {t("overview.loadingHomework")}
                 </div>
               )}
               {isHomeworkError && (
                 <div className="rounded-xl border border-red-100 bg-red-50/70 p-4 text-sm font-medium text-red-700">
-                  {homeworkError?.message ?? "Failed to load today's homework."}
+                  {homeworkError?.message ?? t("overview.failedHomework")}
                 </div>
               )}
               {!isHomeworkLoading && !isHomeworkError && todaysHomework.length === 0 && (
                 <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 text-sm font-medium text-slate-500">
-                  No homework due today.
+                  {t("overview.noHomework")}
                 </div>
               )}
               {!isHomeworkLoading && !isHomeworkError && todaysHomework.map((hw) => {
@@ -276,10 +278,10 @@ export const OverviewModule = ({
                           <p className="text-xs text-slate-500 mt-1">
                             <span className="font-semibold text-slate-700">{hw.subject}</span>
                             <span className="mx-1.5 text-slate-300">•</span>
-                            <span>Homework</span>
+                            <span>{t("overview.homework")}</span>
                             <span className="mx-1.5 text-slate-300">•</span>
                             <span className="text-slate-400 font-medium">
-                              Due {formatDueDate(hw.dueDate)}
+                              {t("overview.due", { date: formatDueDate(hw.dueDate) })}
                             </span>
                           </p>
                         </div>
@@ -317,7 +319,7 @@ export const OverviewModule = ({
                                 : 'bg-[#3949ab] hover:bg-[#32409a] text-white cursor-pointer'
                           }`}
                         >
-                          {isConfirmed ? 'Confirmed' : isPending ? 'Confirming...' : 'Confirm'}
+                          {isConfirmed ? t("overview.confirmed") : isPending ? t("overview.confirming") : t("overview.confirm")}
                         </button>
                       </div>
                     </div>
@@ -332,12 +334,12 @@ export const OverviewModule = ({
         <Card className="h-full flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
-              <SectionLabel>Messages from Teachers</SectionLabel>
+              <SectionLabel>{t("overview.messagesFromTeachers")}</SectionLabel>
               <button
                 onClick={() => setActiveModule("Messages")}
                 className="text-xs font-bold text-blue-600 hover:underline"
               >
-                View all →
+                {t("overview.viewAll")} →
               </button>
             </div>
             <div className="divide-y divide-slate-50">
@@ -377,12 +379,12 @@ export const OverviewModule = ({
         {/* Recent Notifications */}
         <Card>
           <div className="flex items-center justify-between mb-4">
-            <SectionLabel>Recent Notifications</SectionLabel>
+            <SectionLabel>{t("overview.recentNotifications")}</SectionLabel>
             <button
               onClick={() => setActiveModule("Notifications")}
               className="text-[10px] font-bold text-blue-600 hover:underline"
             >
-              View all →
+              {t("overview.viewAll")} →
             </button>
           </div>
           <div className="space-y-3">
@@ -420,15 +422,15 @@ export const OverviewModule = ({
             <div className="flex items-center justify-between mb-4 border-b border-slate-50 pb-3">
               <div>
                 <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">
-                  Schedules & Planners
+                  {t("overview.schedulesPlanners")}
                 </h3>
-                <p className="text-[11px] text-slate-400">Access current class and academic calendars</p>
+                <p className="text-[11px] text-slate-400">{t("overview.accessCalendars")}</p>
               </div>
               <button
                 onClick={() => onOpenPlanner?.("weekly")}
                 className="text-xs font-bold text-[#3949ab] hover:underline cursor-pointer"
               >
-                Full Schedule →
+                {t("overview.fullSchedule")} →
               </button>
             </div>
 
@@ -442,13 +444,13 @@ export const OverviewModule = ({
                     </div>
                     <div className="flex-1 min-w-0">
                       <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50/50 px-1.5 py-0.5 rounded-md mb-1">
-                        TIMETABLE
+                        {t("overview.timetable")}
                       </span>
                       <h4 className="text-xs sm:text-sm font-semibold text-slate-800 tracking-tight leading-snug">
-                        Class Schedule Rows
+                        {t("overview.classScheduleRows")}
                       </h4>
                       <p className="text-[9px] sm:text-[10px] font-medium text-slate-400 mt-0.5 uppercase tracking-wider">
-                        GRADE {child.grade} • SEC {child.section}
+                        {t("overview.gradeSec", { grade: String(child.grade), sec: String(child.section) })}
                       </p>
                     </div>
                   </div>
@@ -461,7 +463,7 @@ export const OverviewModule = ({
                     className="flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-800 transition-all text-[10px] sm:text-xs font-bold uppercase tracking-wider cursor-pointer active:scale-[0.98]"
                   >
                     <Eye size={12} className="stroke-[2]" />
-                    <span>View Grid</span>
+                    <span>{t("overview.viewGrid")}</span>
                   </button>
 
                   <button
@@ -469,7 +471,7 @@ export const OverviewModule = ({
                     className="flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg border border-transparent transition-all text-[10px] sm:text-xs font-bold uppercase tracking-wider cursor-pointer active:scale-[0.98] bg-indigo-50 text-[#3949ab] hover:bg-indigo-100/80"
                   >
                     <Download size={12} className="stroke-[2]" />
-                    <span>PDF</span>
+                    <span>{t("overview.pdf")}</span>
                   </button>
                 </div>
               </div>
@@ -483,13 +485,13 @@ export const OverviewModule = ({
                     </div>
                     <div className="flex-1 min-w-0">
                       <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50/50 px-1.5 py-0.5 rounded-md mb-1">
-                        YEARLY PLAN
+                        {t("overview.yearlyPlan")}
                       </span>
                       <h4 className="text-xs sm:text-sm font-semibold text-slate-800 tracking-tight leading-snug">
-                        Academic Calendar
+                        {t("overview.academicCalendar")}
                       </h4>
                       <p className="text-[9px] sm:text-[10px] font-medium text-slate-400 mt-0.5 uppercase tracking-wider">
-                        12 MASTER LANDMARKS
+                        {t("overview.masterLandmarks")}
                       </p>
                     </div>
                   </div>
@@ -502,7 +504,7 @@ export const OverviewModule = ({
                     className="flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-lg border border-slate-200 bg-white text-slate-650 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-800 transition-all text-[10px] sm:text-xs font-bold uppercase tracking-wider cursor-pointer active:scale-[0.98]"
                   >
                     <Eye size={12} className="stroke-[2]" />
-                    <span>Open Timeline</span>
+                    <span>{t("overview.openTimeline")}</span>
                   </button>
 
                   <button
@@ -510,7 +512,7 @@ export const OverviewModule = ({
                     className="flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg border border-transparent transition-all text-[10px] sm:text-xs font-bold uppercase tracking-wider cursor-pointer active:scale-[0.98] bg-emerald-50 text-emerald-700 hover:bg-emerald-100/80"
                   >
                     <Download size={12} className="stroke-[2]" />
-                    <span>PDF</span>
+                    <span>{t("overview.pdf")}</span>
                   </button>
                 </div>
               </div>
@@ -524,7 +526,7 @@ export const OverviewModule = ({
       <div className="fixed inset-0 z-[220] bg-slate-900/45 backdrop-blur-xs flex items-end sm:items-center justify-center">
         <button
           type="button"
-          aria-label="Close homework details"
+          aria-label={t("overview.closeHomeworkDetails")}
           onClick={() => setSelectedHomework(null)}
           className="absolute inset-0 cursor-default"
         />
@@ -533,7 +535,7 @@ export const OverviewModule = ({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.18em] bg-indigo-50 text-indigo-700">
-                  Homework Details
+                  {t("overview.homeworkDetails")}
                 </span>
                 <h3 className="text-base sm:text-lg font-black text-slate-900 mt-3 leading-tight">
                   {selectedHomework.title}
@@ -558,14 +560,14 @@ export const OverviewModule = ({
                 {getHomeworkBadgeText({ confirmed: selectedHomeworkIsConfirmed })}
               </Badge>
               <p className="text-[11px] font-semibold text-slate-400">
-                Due {formatDueDate(selectedHomework.dueDate)}
+                {t("overview.due", { date: formatDueDate(selectedHomework.dueDate) })}
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-2xl border border-slate-200/70 bg-white p-3">
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                  Section
+                  {t("overview.section")}
                 </p>
                 <p className="text-sm font-semibold text-slate-800 mt-2">
                   {selectedHomework.section}
@@ -573,7 +575,7 @@ export const OverviewModule = ({
               </div>
               <div className="rounded-2xl border border-slate-200/70 bg-white p-3">
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                  Student
+                  {t("overview.student")}
                 </p>
                 <p className="text-sm font-semibold text-slate-800 mt-2">
                   {selectedHomework.studentName}
@@ -581,27 +583,27 @@ export const OverviewModule = ({
               </div>
               <div className="rounded-2xl border border-slate-200/70 bg-white p-3">
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                  Roll No
+                  {t("overview.rollNo")}
                 </p>
                 <p className="text-sm font-semibold text-slate-800 mt-2">
-                  {selectedHomework.studentRollNo || 'Not available'}
+                  {selectedHomework.studentRollNo || t("overview.notAvailable")}
                 </p>
               </div>
             </div>
 
             <div className="rounded-2xl border border-slate-200/70 bg-white p-4">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                Description
-              </p>
-              <p className="text-sm leading-6 text-slate-700 mt-3">
-                {selectedHomework.description?.trim() || 'No description provided.'}
+                  {t("overview.description")}
+                </p>
+                <p className="text-sm leading-6 text-slate-700 mt-3">
+                  {selectedHomework.description?.trim() || t("overview.noDescription")}
               </p>
             </div>
 
             {selectedHomework.homeworkConfirmation?.feedback && (
               <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/70 p-4">
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">
-                  Parent Feedback
+                  {t("overview.parentFeedback")}
                 </p>
                 <p className="text-sm leading-6 text-emerald-900 mt-3">
                   {selectedHomework.homeworkConfirmation.feedback}
@@ -616,7 +618,7 @@ export const OverviewModule = ({
               onClick={() => setSelectedHomework(null)}
               className="rounded-xl px-4 py-2.5 text-sm font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors border-none cursor-pointer"
             >
-              Close
+              {t("overview.close")}
             </button>
             <button
               type="button"
@@ -638,10 +640,10 @@ export const OverviewModule = ({
               }`}
             >
               {selectedHomeworkIsConfirmed
-                ? 'Confirmed'
+                ? t("overview.confirmed")
                 : selectedHomeworkIsPending
-                  ? 'Confirming...'
-                  : 'Confirm Homework'}
+                  ? t("overview.confirming")
+                  : t("overview.confirmHomework")}
             </button>
           </div>
         </div>

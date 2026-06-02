@@ -11,9 +11,10 @@ export type Locale = "en" | "am" | "om" | "ti";
 
 export const LOCALES: { code: Locale; label: string; nativeLabel: string }[] = [
   { code: "en", label: "English", nativeLabel: "English" },
-  { code: "am", label: "Amharic", nativeLabel: "\u12a0\u12cd\u1295\u1293\u1275" },
-  { code: "om", label: "Oromo", nativeLabel: "Oromoo" },
-  { code: "ti", label: "Tigrinya", nativeLabel: "\u1275\u130d\u122a\u1293\u1275" },
+  { code: "am", label: "Amharic", nativeLabel: "አማርኛ" },
+  { code: "om", label: "Oromo", nativeLabel: "Afaan Oromoo" },
+  { code: "ti", label: "Tigrinya", nativeLabel: "ትግርኛ" },
+  // { code: "ti", label: "Tigrinya", nativeLabel: "\u1275\u130d\u1228\u1295\u1275 (\u1275\u130d\u122a\u1293\u1275)" },
 ];
 
 const TRANSLATIONS: Record<Locale, Record<string, unknown>> = { en, am, om, ti };

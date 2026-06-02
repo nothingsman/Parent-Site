@@ -24,7 +24,7 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
     return assignments.map((assignment) => ({
       ...assignment,
       dueDate: assignment.dueDate || "—",
-      type: assignment.taskTypeDisplay || assignment.type || "Assignment",
+      type: assignment.taskTypeDisplay || assignment.type || t("gradebook.assignment"),
     }));
   }, [assignments]);
 
@@ -177,7 +177,7 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
       return (
         <div className="text-right">
           <span className="bg-[#eefcf4] text-[#2ebd6e] border border-[#2ebd6e]/15 rounded-full px-3 py-1 font-bold text-[10px] leading-none tracking-tight inline-block shadow-2xs uppercase">
-            Submitted
+            {t("gradebook.submitted")}
           </span>
         </div>
       );
@@ -186,16 +186,16 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
       return (
         <div className="text-right">
           <span className="bg-[#fff1f0] text-rose-500 border border-rose-250/50 rounded-full px-3 py-1 font-bold text-[10px] leading-none tracking-tight inline-block shadow-2xs uppercase">
-            Missing
+            {t("gradebook.missing")}
           </span>
         </div>
       );
     }
     return (
       <div className="text-right">
-        <span className="bg-[#e6f7ff] text-[#1890ff] border border-[#1890ff]/20 rounded-full px-3 py-1 font-bold text-[10px] leading-none tracking-tight inline-block shadow-2xs uppercase">
-          Upcoming
-        </span>
+          <span className="bg-[#e6f7ff] text-[#1890ff] border border-[#1890ff]/20 rounded-full px-3 py-1 font-bold text-[10px] leading-none tracking-tight inline-block shadow-2xs uppercase">
+            {t("gradebook.upcoming")}
+          </span>
       </div>
     );
   };
@@ -236,7 +236,7 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
           </div>
           <div className="bg-slate-50 border border-slate-100/75 rounded-xl p-3 text-center">
             <div className="text-[9px] font-black uppercase tracking-wider text-rose-600">
-              Missing
+              {t("gradebook.missing")}
             </div>
             <div className="text-lg font-black text-rose-600 mt-1">
               {missingTasks}
@@ -244,7 +244,7 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
           </div>
           <div className="bg-[#3949AB]/5 border border-[#3949AB]/10 rounded-xl p-3 text-center">
             <div className="text-[9px] font-black text-[#3949AB] uppercase tracking-wider font-extrabold">
-              Average
+              {t("gradebook.average")}
             </div>
             <div className="text-lg font-black text-[#3949AB] mt-1">
               {averagePercentage}%
@@ -255,13 +255,13 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
 
       {isLoading && (
         <div className="rounded-xl border border-slate-100 bg-white p-4 text-sm font-medium text-slate-500">
-          Loading gradebook...
+          {t("gradebook.loading")}
         </div>
       )}
 
       {isError && (
         <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-700">
-          {error?.message ?? 'Failed to load gradebook.'}
+          {error?.message ?? t("gradebook.failedToLoad")}
         </div>
       )}
 
@@ -285,7 +285,7 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
           {/* Subject Filter Dropdown */}
           <div className="flex items-center gap-2">
             <span className="text-xs font-black uppercase text-slate-400 shrink-0">
-              Subject:
+              {t("gradebook.subjectFilter")}:
             </span>
             <div className="relative flex-1">
               <select
@@ -309,7 +309,7 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
           {/* Type Filter Dropdown */}
           <div className="flex items-center gap-2">
             <span className="text-xs font-black uppercase text-slate-400 shrink-0">
-              Type:
+              {t("gradebook.typeFilter")}:
             </span>
             <div className="relative flex-1">
               <select
@@ -317,10 +317,10 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
                 onChange={(e) => setTypeFilter(e.target.value)}
                 className="w-full sm:w-auto appearance-none bg-slate-50 border border-slate-100 hover:border-slate-200 text-xs sm:text-sm font-bold text-slate-600 pl-4 pr-9 py-2 rounded-xl outline-none cursor-pointer transition-all border-none"
               >
-                <option value="All">All Types</option>
-                <option value="Assignment">Assignments</option>
-                <option value="Quiz">Quizzes</option>
-                <option value="Exam">Exams</option>
+                <option value="All">{t("gradebook.allTypes")}</option>
+                <option value="Assignment">{t("gradebook.assignments")}</option>
+                <option value="Quiz">{t("gradebook.quizzes")}</option>
+                <option value="Exam">{t("gradebook.exams")}</option>
               </select>
               <ChevronDown
                 size={14}
@@ -348,15 +348,15 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
                 task.status.toLowerCase() === "graded" ||
                 task.status.toLowerCase() === "submitted"
               ) {
-                statusLabel = "Submitted";
+                statusLabel = t("gradebook.submitted");
                 statusBgClass =
                   "bg-[#eefcf4] text-[#2ebd6e] border border-[#2ebd6e]/15";
               } else if (task.status.toLowerCase() === "missing") {
-                statusLabel = "Missing";
+                statusLabel = t("gradebook.missing");
                 statusBgClass =
                   "bg-[#fff1f0] text-rose-500 border border-rose-250/50";
               } else {
-                statusLabel = "Upcoming";
+                statusLabel = t("gradebook.upcoming");
                 statusBgClass =
                   "bg-[#e6f7ff] text-[#1890ff] border border-[#1890ff]/20";
               }
@@ -401,14 +401,14 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
                     onClick={() => setSelectedTask(task)}
                     className="w-full py-2.5 bg-[#3949ab]/5 hover:bg-[#3949ab]/10 active:bg-[#3949ab]/15 text-[#3949ab] text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1 border border-[#3949ab]/10 cursor-pointer select-none active:scale-98"
                   >
-                    View Grade Details
+                    {t("gradebook.viewDetails")}
                   </button>
                 </div>
               );
             })
           ) : (
             <div className="bg-white border border-slate-105 rounded-2xl py-12 text-center text-slate-400 text-xs italic p-4">
-              No tasks or assignments found matching your filter criteria.
+              {t("gradebook.noResults")}
             </div>
           )}
         </div>
@@ -428,10 +428,10 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
                   {t("gradebook.percentage")}
                 </th>
                 <th className="py-4 px-6 text-center text-[11px] font-black uppercase tracking-wider w-20">
-                  grade
+                  {t("gradebook.grade")}
                 </th>
                 <th className="py-4 px-6 text-right text-[11px] font-black uppercase tracking-wider w-28">
-                  status
+                  {t("gradebook.status")}
                 </th>
               </tr>
             </thead>
@@ -445,7 +445,6 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
                       key={task.id}
                       className="group hover:bg-slate-50/40 transition-all duration-200"
                     >
-                      {/* COLUMN 1: STUDENT / TASK */}
                       <td className="py-4 px-6 flex items-center gap-4">
                         <div
                           className="w-11 h-11 rounded-full flex items-center justify-center font-black text-[13px] tracking-wider transition-transform group-hover:scale-105"
@@ -466,27 +465,15 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
                           </p>
                         </div>
                       </td>
-
-                      {/* COLUMN 2: SCORE */}
                       <td className="py-4 px-6 text-center">
                         {getScoreCell(task.score, task.maxScore, task.status)}
                       </td>
-
-                      {/* COLUMN 3: PERCENTAGE */}
                       <td className="py-4 px-6 text-center">
-                        {getPercentageCell(
-                          task.score,
-                          task.maxScore,
-                          task.status,
-                        )}
+                        {getPercentageCell(task.score, task.maxScore, task.status)}
                       </td>
-
-                      {/* COLUMN 4: GRADE */}
                       <td className="py-4 px-6 text-center">
                         {getGradeCell(task.score, task.maxScore, task.status)}
                       </td>
-
-                      {/* COLUMN 5: STATUS */}
                       <td className="py-4 px-6 text-right">
                         {getStatusBadge(task.status)}
                       </td>
@@ -495,11 +482,8 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
                 })
               ) : (
                 <tr>
-                  <td
-                    colSpan={5}
-                    className="py-16 text-center text-slate-400 text-xs italic bg-slate-50/30 p-4"
-                  >
-                    No tasks or assignments found matching your filter criteria.
+                  <td colSpan={5} className="py-16 text-center text-slate-400 text-xs italic bg-slate-50/30 p-4">
+                    {t("gradebook.noResults")}
                   </td>
                 </tr>
               )}
@@ -533,7 +517,7 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <span className="text-[9px] font-black uppercase text-indigo-600 tracking-wider bg-indigo-50 border border-indigo-100 rounded-md px-2 py-0.5">
-                    {selectedTask.type} Details
+                    {selectedTask.type} {t("gradebook.details")}
                   </span>
                   <h3 className="text-base font-black text-slate-800 mt-2.5 leading-tight">
                     {selectedTask.title}
@@ -561,7 +545,7 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
                   {/* Score */}
                   <div className="bg-slate-50 border border-slate-100/70 rounded-2xl p-3 text-center">
                     <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest block">
-                      Score
+                      {t("gradebook.score")}
                     </span>
                     <div className="mt-1 text-slate-800 font-bold">
                       {selectedTask.score !== null &&
@@ -585,7 +569,7 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
                   {/* Percentage */}
                   <div className="bg-slate-50 border border-slate-100/70 rounded-2xl p-3 text-center flex flex-col justify-center items-center">
                     <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest block mb-1">
-                      Percent
+                      {t("gradebook.percent")}
                     </span>
                     <div>
                       {selectedTask.score !== null &&
@@ -624,7 +608,7 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
                   {/* Letter Grade */}
                   <div className="bg-slate-50 border border-slate-100/70 rounded-2xl p-3 text-center flex flex-col justify-center items-center">
                     <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest block mb-1">
-                      Grade
+                      {t("gradebook.grade")}
                     </span>
                     <div className="h-7 w-7 flex items-center justify-center">
                       {getGradeCell(
@@ -640,28 +624,28 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
                 <div className="bg-slate-50/50 rounded-2xl border border-slate-100/60 p-4 space-y-3.5">
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-bold text-slate-400">
-                      Submission Status
+                      {t("gradebook.submissionStatus")}
                     </span>
                     <div>
                       {selectedTask.status.toLowerCase() === "graded" ||
                       selectedTask.status.toLowerCase() === "submitted" ? (
                         <span className="bg-[#eefcf4] text-[#2ebd6e] border border-[#2ebd6e]/15 rounded-full px-2.5 py-0.5 font-bold text-[10px] tracking-tight">
-                          Submitted
+                          {t("gradebook.submitted")}
                         </span>
                       ) : selectedTask.status.toLowerCase() === "missing" ? (
                         <span className="bg-[#fff1f0] text-rose-500 border border-rose-250/50 rounded-full px-2.5 py-0.5 font-bold text-[10px] tracking-tight">
-                          Missing
+                          {t("gradebook.missing")}
                         </span>
                       ) : (
                         <span className="bg-[#e6f7ff] text-[#1890ff] border border-[#1890ff]/20 rounded-full px-2.5 py-0.5 font-bold text-[10px] tracking-tight">
-                          Upcoming
+                          {t("gradebook.upcoming")}
                         </span>
                       )}
                     </div>
                   </div>
 
                   <div className="flex justify-between items-center text-xs">
-                    <span className="font-bold text-slate-400">Due Date</span>
+                    <span className="font-bold text-slate-400">{t("gradebook.dueDate")}</span>
                     <span className="font-black text-slate-700 font-mono text-[11px] bg-white border border-slate-105 rounded-md px-2 py-0.5 shadow-2xs">
                       {selectedTask.dueDate || "—"}
                     </span>
@@ -675,7 +659,7 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
                 onClick={() => setSelectedTask(null)}
                 className="w-full py-2.5 bg-[#3949ab] hover:bg-[#3949ab]/90 text-white text-xs font-black rounded-xl shadow-xs hover:shadow-sm transition-all text-center cursor-pointer uppercase tracking-wider border-none"
               >
-                Close Details
+                {t("gradebook.closeDetails")}
               </button>
             </motion.div>
           </div>

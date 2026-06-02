@@ -2,14 +2,24 @@ import React, { useState } from 'react';
 import { Star, ClipboardList, MessageCircle, Clock, CalendarX, Info, MoreVertical } from 'lucide-react';
 import { Card } from '@/components/ui';
 import { Child } from '@/types';
+import { useTranslation } from '@/lib/i18n';
 
 export interface NotificationsModuleProps {
   child: Child;
 }
 
 export const NotificationsModule = ({ child }: NotificationsModuleProps) => {
-  const [filter, setFilter] = useState("All");
-  const tabs = ["All", "Grades", "Assignments", "Messages", "Attendance"];
+  const { t } = useTranslation();
+  const [filter, setFilter] = useState("all");
+  const tabs = ["all", "grades", "assignments", "messages", "attendance"];
+
+  const tabLabels: Record<string, string> = {
+    all: t("notifications.all"),
+    grades: t("nav.grades"),
+    assignments: t("nav.assignments"),
+    messages: t("nav.messages"),
+    attendance: t("nav.attendance"),
+  };
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -25,12 +35,12 @@ export const NotificationsModule = ({ child }: NotificationsModuleProps) => {
                   : "text-slate-500 hover:text-slate-700"
               }`}
             >
-              {tab}
+              {tabLabels[tab]}
             </button>
           ))}
         </div>
         <button className="text-xs font-bold text-blue-600 px-3 py-1.5 hover:bg-blue-50 rounded-lg transition-colors shrink-0 max-w-max self-end sm:self-auto">
-          Mark all as read
+          {t("notifications.markAllRead")}
         </button>
       </div>
 

@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useChildren } from "@/hooks";
 import { useBranchIdentity } from "@/hooks/useBranchIdentity";
@@ -69,6 +69,7 @@ export function getParentDisplayName(parentProfile?: ParentMeResponse): string {
 
 export default function App() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { t } = useTranslation();
   const { data: children = [], isLoading, isError, error } = useChildren();
   const { data: parentProfile } = useQuery({
@@ -110,7 +111,7 @@ export default function App() {
   }, [isProfileMenuOpen]);
 
   const handleLogout = async () => {
-    await logout();
+    await logout(queryClient);
     router.replace("/login");
   };
 
@@ -305,11 +306,11 @@ export default function App() {
                   </button>
                   <button onClick={() => { setShowMoreSheet(false); setIsSettingsOpen(true); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 cursor-pointer border-none bg-transparent text-left">
                     <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500"><Settings size={16} /></div>
-                    <span className="text-sm font-semibold text-slate-700">Settings</span>
+                    <span className="text-sm font-semibold text-slate-700">{t("profile.settings")}</span>
                   </button>
                   <button onClick={() => { setShowMoreSheet(false); handleLogout(); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-rose-50 cursor-pointer border-none bg-transparent text-left">
                     <div className="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500"><LogOut size={16} /></div>
-                    <span className="text-sm font-semibold text-rose-600">Log out</span>
+                    <span className="text-sm font-semibold text-rose-600">{t("profile.logout")}</span>
                   </button>
                 </div>
               </motion.div>
@@ -344,7 +345,7 @@ export default function App() {
                     {schoolName || "School"}
                   </h2>
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                    Academic Portal
+                    {t("analytics.academicPortal")}
                   </p>
                   {branchName && (
                     <p className="text-[9px] font-semibold text-slate-500 truncate">
@@ -407,7 +408,7 @@ export default function App() {
                   }}
                   className="w-full px-4 py-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer border-none bg-transparent text-left"
                 >
-                  <User size={14} /> View Profile
+                  <User size={14} /> {t("profile.viewProfile")}
                 </button>
                 <button
                   type="button"
@@ -417,7 +418,7 @@ export default function App() {
                   }}
                   className="w-full px-4 py-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer border-none bg-transparent text-left"
                 >
-                  <Settings size={14} /> Settings
+                  <Settings size={14} /> {t("profile.settings")}
                 </button>
                 <button
                   type="button"
@@ -427,7 +428,7 @@ export default function App() {
                   }}
                   className="w-full px-4 py-3 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer border-none bg-transparent text-left"
                 >
-                  <LogOut size={14} /> Log out
+                  <LogOut size={14} /> {t("profile.logout")}
                 </button>
               </div>
             )}

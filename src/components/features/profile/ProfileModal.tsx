@@ -60,7 +60,7 @@ export default function ProfileModal({ open, onClose, profile, parentName, paren
                     {parentInitials}
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold text-slate-900">Profile</h2>
+                    <h2 className="text-lg font-bold text-slate-900">{t("profile.title")}</h2>
                     <p className="text-xs text-slate-500">{parentName}</p>
                   </div>
                 </div>
@@ -82,7 +82,7 @@ export default function ProfileModal({ open, onClose, profile, parentName, paren
                     <InfoRow icon={<Briefcase size={16} />} label={t("profile.occupation")} value={profile.occupation} />
                   )}
                   {profile?.work_address && (
-                    <InfoRow icon={<MapPin size={16} />} label="Work Address" value={profile.work_address} />
+                    <InfoRow icon={<MapPin size={16} />} label={t("profile.workAddress")} value={profile.work_address} />
                   )}
                 </div>
 

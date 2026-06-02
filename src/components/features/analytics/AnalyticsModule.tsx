@@ -117,16 +117,16 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
       pending,
       missing,
       pieData: [
-        { name: "Graded & Completed", value: completed, color: "#10b981" },
-        { name: "Due / Pending", value: pending, color: "#f59e0b" },
-        { name: "Missing Work", value: missing, color: "#ef4444" },
+        { name: t("analytics.gradedCompleted"), value: completed, color: "#10b981" },
+        { name: t("analytics.duePending"), value: pending, color: "#f59e0b" },
+        { name: t("analytics.missingWork"), value: missing, color: "#ef4444" },
       ].filter(d => d.value > 0),
     };
   }, [child]);
 
   // 4. Heatmap Activity Data (Deterministic 28 Days Grid)
   const heatmapData = useMemo(() => {
-    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const days = [t("analytics.mon"), t("analytics.tue"), t("analytics.wed"), t("analytics.thu"), t("analytics.fri"), t("analytics.sat"), t("analytics.sun")];
     const seed = child.id.charCodeAt(child.id.length - 1) + child.id.charCodeAt(0);
     const grid = [];
     
@@ -199,7 +199,7 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
                 {getGradeLetter(gradePercentageValue)}
               </span>
             </div>
-            <p className="text-[9px] text-slate-400 mt-1">Average across all current modules</p>
+            <p className="text-[9px] text-slate-400 mt-1">{t("analytics.averageAllModules")}</p>
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-100 p-4 flex flex-col justify-between">
@@ -214,7 +214,7 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
                 {t("analytics.excellent")}
               </span>
             </div>
-            <p className="text-[9px] text-slate-400 mt-1">Directly drives active class interaction</p>
+            <p className="text-[9px] text-slate-400 mt-1">{t("analytics.drivesInteraction")}</p>
           </div>
         </div>
       </div>
@@ -280,11 +280,11 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
                             <p className="font-extrabold mb-1.5 text-slate-200">{data.name}</p>
                             <div className="space-y-1">
                               <p className="flex justify-between gap-6">
-                                <span className="text-slate-400">Student Grade:</span>
+                                <span className="text-slate-400">{t("analytics.studentGrade")}:</span>
                                 <span className="font-black text-indigo-300">{data.Score}%</span>
                               </p>
                               <p className="flex justify-between gap-6">
-                                <span className="text-slate-400">Class Target:</span>
+                                <span className="text-slate-400">{t("analytics.classTarget")}:</span>
                                 <span className="font-black text-slate-200">{data.ClassAverage}%</span>
                               </p>
                             </div>
@@ -444,7 +444,7 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
                     <span className="text-xs font-semibold text-slate-600">{t("analytics.gradedCompleted")}</span>
                   </div>
                   <span className="text-xs font-extrabold text-slate-800 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-md">
-                    {assignmentStats.completed} tasks
+                    {assignmentStats.completed} {t("analytics.tasks")}
                   </span>
                 </div>
 
@@ -454,7 +454,7 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
                     <span className="text-xs font-semibold text-slate-600">{t("analytics.duePending")}</span>
                   </div>
                   <span className="text-xs font-extrabold text-slate-800 bg-amber-50 text-amber-700 px-2 py-0.5 rounded-md">
-                    {assignmentStats.pending} due
+                    {assignmentStats.pending} {t("analytics.due")}
                   </span>
                 </div>
 
@@ -462,10 +462,10 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
                   <div className="bg-rose-50/30 hover:bg-rose-50/50 rounded-xl p-2.5 flex items-center justify-between border border-rose-100/30 transition-colors">
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-rose-500" />
-                      <span className="text-xs font-semibold text-rose-700">Missing Activity</span>
+                      <span className="text-xs font-semibold text-rose-700">{t("analytics.missingActivity")}</span>
                     </div>
                     <span className="text-xs font-extrabold text-white bg-rose-500 px-2 py-0.5 rounded-md">
-                      {assignmentStats.missing} missing
+                      {assignmentStats.missing} {t("analytics.missing")}
                     </span>
                   </div>
                 )}
@@ -483,16 +483,16 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
       <div className="max-w-xl">
         <SectionLabel>
           <Calendar size={13} className="text-[#3949ab]" />
-          Submission Frequency Grid
+          {t("analytics.submissionFrequencyGrid")}
         </SectionLabel>
 
         <Card className="flex flex-col justify-between">
           <div>
             <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider mb-1">
-              4-Week Homework Heatmap
+              {t("analytics.fourWeekHeatmap")}
             </h4>
             <p className="text-[10px] text-slate-400 mb-4 font-medium">
-              Submission events per day of active logs
+              {t("analytics.submissionEvents")}
             </p>
           </div>
 
@@ -543,16 +543,16 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
 
             {/* Heatmap Legend summary */}
             <div className="flex items-center justify-between text-[9px] font-black text-slate-400 mt-4 border-t border-slate-50 pt-3">
-              <span>Week 1 (Old)</span>
+              <span>{t("analytics.week1Old")}</span>
               <div className="flex items-center gap-1.5">
-                <span className="text-[8px] font-medium mr-1 uppercase">LESS</span>
+                <span className="text-[8px] font-medium mr-1 uppercase">{t("analytics.less")}</span>
                 <div className="w-2.5 h-2.5 rounded bg-slate-50 border border-slate-100" />
                 <div className="w-2.5 h-2.5 rounded bg-indigo-100" />
                 <div className="w-2.5 h-2.5 rounded bg-[#3949ab]/50" />
                 <div className="w-2.5 h-2.5 rounded bg-[#3949ab]" />
-                <span className="text-[8px] font-medium ml-1 uppercase">MORE</span>
+                <span className="text-[8px] font-medium ml-1 uppercase">{t("analytics.more")}</span>
               </div>
-              <span>Week 4 (New)</span>
+              <span>{t("analytics.week4New")}</span>
             </div>
           </div>
 
@@ -564,14 +564,12 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
                   Week {hoveredHeatmapDay.week} • {hoveredHeatmapDay.dayName}:{" "}
                   <strong className="text-[#3949ab]">
                     {hoveredHeatmapDay.count === 0
-                      ? "No Submissions"
-                      : `${hoveredHeatmapDay.count} active submission${
-                          hoveredHeatmapDay.count > 1 ? "s" : ""
-                        }`}
+                      ? t("analytics.noSubmissions")
+                      : t("analytics.activeSubmissions", { count: hoveredHeatmapDay.count })}
                   </strong>
                 </>
               ) : (
-                "Hover items for detail reports"
+                t("analytics.hoverForDetails")
               )}
             </span>
           </div>

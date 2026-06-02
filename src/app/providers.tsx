@@ -23,9 +23,22 @@ const queryClient = new QueryClient({
 configureApiClient({
   getAccessToken,
   onUnauthorized: () => {
-    // Clear any cached auth state and redirect to login
+    // Clear React Query cache
     queryClient.clear();
     if (typeof window !== 'undefined') {
+      // Clear homework confirmation flags
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('homework-confirmed-')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((key) => localStorage.removeItem(key));
+
+      // Try to call backend logout to clear the HttpOnly refresh token cookie
+      fetch('/auth/jwt/logout/', { method: 'POST', credentials: 'include' }).catch(() => {});
+
       if (window.location.pathname !== '/login') {
         window.location.replace('/login');
       }

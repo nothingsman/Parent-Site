@@ -91,9 +91,31 @@ export async function completeParentInvitation(payload: CompleteInvitationReques
 }
 
 export async function logout(queryClient?: import('@tanstack/react-query').QueryClient): Promise<void> {
+  // Call backend to clear the HttpOnly refresh token cookie
+  try {
+    await apiClient.post('/auth/jwt/logout/', {});
+  } catch {
+    // Backend may be unreachable; proceed with client-side cleanup anyway
+  }
+
+  // Clear in-memory tokens
   accessToken = null;
   refreshPromise = null;
+
+  // Clear React Query cache (all API data)
   queryClient?.clear();
+
+  // Clear homework confirmation flags (per-child data)
+  if (typeof window !== 'undefined') {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('homework-confirmed-')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+  }
 }
 
 export async function refreshToken(): Promise<string> {

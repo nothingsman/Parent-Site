@@ -106,20 +106,20 @@ function buildCalendarDays(
   return days;
 }
 
-function getDayStatusLabel(record: AttendanceRecordEntry | null, type: string): string {
+function getDayStatusLabel(record: AttendanceRecordEntry | null, type: string, t: (key: string) => string): string {
   if (!record) {
     if (type === 'no-school') {
-      return 'No school scheduled.';
+      return t("attendance_detail.noSchool");
     }
-    return 'No attendance record for this day.';
+    return t("attendance_detail.noRecord");
   }
   if (record.reason?.parent_confirmed) {
-    return `${record.statusDisplay} — Parent reason confirmed.`;
+    return `${record.statusDisplay} — ${t("attendance_detail.parentConfirmed")}`;
   }
   if (record.needsReason) {
-    return `${record.statusDisplay} — Parent confirmation required.`;
+    return `${record.statusDisplay} — ${t("attendance_detail.parentConfirmationRequired")}`;
   }
-  return `${record.statusDisplay} — Attendance recorded successfully.`;
+  return `${record.statusDisplay} — ${t("attendance_detail.attendanceRecorded")}`;
 }
 
 export const AttendanceView: React.FC<AttendanceViewProps> = ({
@@ -170,7 +170,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   const unexcusedAbsences = Math.min(summary?.unexcusedAbsences ?? 0, absenceLimit);
   const totalAbsenceUsage = Math.min(currentAbsences, totalThreshold);
 
-  const name = student.name || 'Student';
+  const name = student.name || t("attendance_detail.student");
 
   React.useEffect(() => {
     setCalendarMonth((currentMonth) => (
@@ -192,7 +192,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     return (
       <div className="attendance-module-container">
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm font-medium text-red-700">
-          {errorMessage ?? 'Failed to load attendance.'}
+          {errorMessage ?? t("attendance_detail.failedToLoad")}
         </div>
       </div>
     );
@@ -210,7 +210,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
           disabled={!selectedRecord?.needsReason}
           className="px-4 py-2 bg-[#3949AB] hover:bg-blue-900 disabled:bg-slate-200 disabled:text-slate-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-900/10 cursor-pointer border-none"
         >
-          {selectedRecord?.needsReason ? 'Add or Confirm Selected Reason' : t("attendance_detail.selectDayReason")}
+          {selectedRecord?.needsReason ? t("attendance_detail.addOrConfirmReason") : t("attendance_detail.selectDayReason")}
         </button>
       </div>
 
@@ -219,7 +219,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
           <div className="attendance-stat-label">{t("attendance_detail.termAttendance")}</div>
           <div className="attendance-stat-value blue">{currentTermAttendance.toFixed(1)}%</div>
           <div className="attendance-stat-foot">
-            {summary ? t("attendance_detail.daysCounted", { count: String(currentDaysPresent + currentExcused), total: String(currentTotalDays) }) : 'No summary available'}
+            {summary ? t("attendance_detail.daysCounted", { count: String(currentDaysPresent + currentExcused), total: String(currentTotalDays) }) : t("attendance_detail.noSummary")}
           </div>
         </div>
 
@@ -248,7 +248,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
           <div className="attendance-stat-label">{t("attendance_detail.policyStanding")}</div>
           <div className="attendance-stat-value green text-lg mt-1 font-bold">{policyStanding}</div>
           <div className="attendance-stat-foot text-emerald-600 font-medium">
-            ● {policyStanding === 'On Track' ? t("attendance_detail.activeCompliance") : policyStanding === 'Watch' ? 'Monitor Attendance' : 'Needs Follow-up'}
+            ● {policyStanding === 'On Track' ? t("attendance_detail.activeCompliance") : policyStanding === 'Watch' ? t("attendance_detail.monitorAttendance") : t("attendance_detail.needsFollowup")}
           </div>
         </div>
       </div>
@@ -266,7 +266,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 onClick={() => setActivePolicyTab('ytd')}
                 className={`attendance-tab-btn ${activePolicyTab === 'ytd' ? 'active' : ''}`}
               >
-                YTD
+                    {t("attendance_detail.ytd")}
               </button>
               <button
                 onClick={() => setActivePolicyTab('term2')}
@@ -324,7 +324,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
             </div>
             <div className="flex items-center gap-1 text-[11px] text-slate-400 font-semibold">
               <Clock size={12} className="text-slate-400" />
-              <span>{records[0] ? `Updated ${DATE_FORMATTER.format(new Date(`${records[0].date}T00:00:00`))}` : 'No records'}</span>
+              {records[0] ? `${t("attendance_detail.updated")} ${DATE_FORMATTER.format(new Date(`${records[0].date}T00:00:00`))}` : t("attendance_detail.noRecords")}
             </div>
           </div>
 
@@ -336,14 +336,14 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 <div className="attendance-ytd-item-sub green">{t("attendance_detail.active")}</div>
               </div>
 
-              <div className="attendance-ytd-item transition-transform hover:scale-[1.02]">
-                <div className="attendance-ytd-item-label">Days Absent</div>
+                <div className="attendance-ytd-item transition-transform hover:scale-[1.02]">
+                <div className="attendance-ytd-item-label">{t("attendance_detail.daysAbsent")}</div>
                 <div className="attendance-ytd-item-value text-red-600">{currentAbsences}</div>
                 <div className="attendance-ytd-item-sub red">{t("attendance_detail.tracked")}</div>
               </div>
 
-              <div className="attendance-ytd-item transition-transform hover:scale-[1.02]">
-                <div className="attendance-ytd-item-label">Days Late</div>
+                <div className="attendance-ytd-item transition-transform hover:scale-[1.02]">
+                <div className="attendance-ytd-item-label">{t("attendance_detail.daysLate")}</div>
                 <div className="attendance-ytd-item-value text-amber-600">{currentLates}</div>
                 <div className="attendance-ytd-item-sub amber">{t("attendance_detail.tardy")}</div>
               </div>
@@ -354,8 +354,8 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 <div className="attendance-ytd-item-sub green">{t("attendance_detail.approved")}</div>
               </div>
 
-              <div className="attendance-ytd-item transition-transform hover:scale-[1.02]">
-                <div className="attendance-ytd-item-label">Pending Reasons</div>
+                <div className="attendance-ytd-item transition-transform hover:scale-[1.02]">
+                <div className="attendance-ytd-item-label">{t("attendance_detail.pendingReasons")}</div>
                 <div className="attendance-ytd-item-value text-rose-500">{pendingReasons}</div>
                 <div className="attendance-ytd-item-sub red">{t("attendance_detail.needsNote")}</div>
               </div>
@@ -373,7 +373,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       <div className="attendance-card attendance-cal-card">
         <div className="attendance-cal-nav">
           <div>
-            <div className="attendance-card-title">Calendar — {MONTH_FORMATTER.format(calendarMonth)}</div>
+            <div className="attendance-ytd-item-label">{t("attendance_detail.calendar")} — {MONTH_FORMATTER.format(calendarMonth)}</div>
             <div className="attendance-card-subtitle">{t("attendance_detail.programmatic")}</div>
           </div>
           <div className="flex gap-1.5">
@@ -437,14 +437,14 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                   <p className="font-bold text-slate-800">
                     {DATE_FORMATTER.format(new Date(`${selectedRecord.date}T00:00:00`))}
                   </p>
-                  <p className="mt-0.5">{getDayStatusLabel(selectedRecord, selectedRecord.status)}</p>
+                  <p className="mt-0.5">{getDayStatusLabel(selectedRecord, selectedRecord.status, t)}</p>
                   {selectedRecord.remarks && (
-                    <p className="mt-2 text-slate-500">Remarks: {selectedRecord.remarks}</p>
+                    <p className="mt-2 text-slate-500">{t("attendance_detail.remarks")}: {selectedRecord.remarks}</p>
                   )}
                   {selectedRecord.reason && (
                     <p className="mt-1 text-slate-500">
-                      Reason: {selectedRecord.reason.reason_category_display ?? selectedRecord.reason.reason_category}
-                      {selectedRecord.reason.parent_confirmed ? ' (confirmed)' : ' (pending)'}
+                      {t("attendance_detail.reason")}: {selectedRecord.reason.reason_category_display ?? selectedRecord.reason.reason_category}
+                      {selectedRecord.reason.parent_confirmed ? ` (${t("attendance_detail.confirmed")})` : ` (${t("attendance_detail.pending")})`}
                     </p>
                   )}
                 </div>
@@ -474,7 +474,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
           </div>
           <div className="attendance-legend-item">
             <div className="attendance-legend-swatch excused" />
-            <span>Excused</span>
+            <span>{t("attendance_detail.excused")}</span>
           </div>
           <div className="attendance-legend-item">
             <div className="attendance-legend-swatch no-school border border-slate-200" />
@@ -494,7 +494,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
             onClose={() => setShowLogAbsenceModal(false)}
             onSubmit={(data) => {
               setShowLogAbsenceModal(false);
-              setToast({ show: true, message: `Attendance reason updated for ${DATE_FORMATTER.format(new Date(`${selectedRecord.date}T00:00:00`))}` });
+              setToast({ show: true, message: `${t("attendance_detail.reasonUpdated")} ${DATE_FORMATTER.format(new Date(`${selectedRecord.date}T00:00:00`))}` });
               setTimeout(() => {
                 setToast(null);
               }, 4000);
@@ -520,7 +520,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
               <Check size={14} strokeWidth={2.5} />
             </div>
             <div className="text-xs">
-              <p className="font-bold text-white">Action Completed</p>
+              <p className="font-bold text-white">{t("attendance_detail.actionCompleted")}</p>
               <p className="text-[10px] text-slate-400">{toast.message}</p>
             </div>
           </motion.div>
