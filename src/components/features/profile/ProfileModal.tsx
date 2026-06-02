@@ -4,6 +4,7 @@ import React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Mail, Phone, Briefcase, MapPin, User, Shield } from "lucide-react";
 import { ParentMeResponse } from "@/types/api";
+import { useTranslation } from "@/lib/i18n";
 
 interface ProfileModalProps {
   open: boolean;
@@ -31,6 +32,7 @@ export default function ProfileModal({ open, onClose, profile, parentName, paren
   const userDetails = profile?.user_details;
   const orgs = profile?.organization_details ?? [];
   const students = profile?.student_details ?? [];
+  const { t } = useTranslation();
 
   return (
     <AnimatePresence>
@@ -73,11 +75,11 @@ export default function ProfileModal({ open, onClose, profile, parentName, paren
 
               <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
                 <div className="space-y-4">
-                  <InfoRow icon={<User size={16} />} label="Full Name" value={userDetails?.name} />
-                  <InfoRow icon={<Mail size={16} />} label="Email" value={userDetails?.email} />
-                  <InfoRow icon={<Phone size={16} />} label="Phone" value={userDetails?.phone_number} />
+                  <InfoRow icon={<User size={16} />} label={t("profile.fullName")} value={userDetails?.name} />
+                  <InfoRow icon={<Mail size={16} />} label={t("profile.email")} value={userDetails?.email} />
+                  <InfoRow icon={<Phone size={16} />} label={t("profile.phone")} value={userDetails?.phone_number} />
                   {profile?.occupation && (
-                    <InfoRow icon={<Briefcase size={16} />} label="Occupation" value={profile.occupation} />
+                    <InfoRow icon={<Briefcase size={16} />} label={t("profile.occupation")} value={profile.occupation} />
                   )}
                   {profile?.work_address && (
                     <InfoRow icon={<MapPin size={16} />} label="Work Address" value={profile.work_address} />
@@ -88,7 +90,7 @@ export default function ProfileModal({ open, onClose, profile, parentName, paren
                   <div className="pt-4 border-t border-slate-100">
                     <div className="flex items-center gap-2 mb-3">
                       <Shield size={14} className="text-slate-400" />
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Organizations</p>
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t("profile.organizations")}</p>
                     </div>
                     <div className="space-y-2">
                       {orgs.map((org) => (
@@ -105,17 +107,17 @@ export default function ProfileModal({ open, onClose, profile, parentName, paren
                   <div className="pt-4 border-t border-slate-100">
                     <div className="flex items-center gap-2 mb-3">
                       <User size={14} className="text-slate-400" />
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Linked Children</p>
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t("profile.linkedChildren")}</p>
                     </div>
                     <div className="space-y-2">
                       {students.map((s) => (
                         <div key={s.id} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 flex items-center justify-between">
                           <div>
                             <p className="text-sm font-semibold text-slate-900">{s.first_name} {s.last_name}</p>
-                            <p className="text-xs text-slate-500 mt-0.5">Roll No: {s.roll_no}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{t("profile.rollNo")}: {s.roll_no}</p>
                           </div>
                           {s.is_primary_contact && (
-                            <span className="text-[10px] font-bold text-[#1A237E] bg-[#E8EAF6] px-2 py-0.5 rounded-full">Primary</span>
+                            <span className="text-[10px] font-bold text-[#1A237E] bg-[#E8EAF6] px-2 py-0.5 rounded-full">{t("profile.primary")}</span>
                           )}
                         </div>
                       ))}

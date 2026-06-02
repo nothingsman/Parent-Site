@@ -6,6 +6,7 @@ import { Card } from '@/components/ui';
 import { useAssignments } from '@/hooks';
 import { AssignmentEntry, Child } from '@/types';
 import { getSubjectInitials, getGradeLetter, getGradeBg } from '@/lib/utils';
+import { useTranslation } from '@/lib/i18n';
 
 export interface GradebookModuleProps {
   child: Child;
@@ -17,6 +18,7 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
   const [typeFilter, setTypeFilter] = useState("All");
   const [selectedTask, setSelectedTask] = useState<AssignmentEntry | null>(null);
   const { data: assignments = [], isLoading, isError, error } = useAssignments(child);
+  const { t } = useTranslation();
 
   const tasks = useMemo(() => {
     return assignments.map((assignment) => ({
@@ -204,14 +206,13 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white border border-slate-100 rounded-2xl p-6 shadow-xs">
         <div>
           <span className="text-[10px] font-black tracking-widest text-[#3949ab] uppercase bg-[#3949ab]/10 px-2.5 py-1 rounded-md">
-            Student Gradebook
+            {t("gradebook.studentGradebook")}
           </span>
           <h2 className="text-xl font-black text-slate-900 tracking-tight mt-3">
-            {child.name}'s Academic Performance
+            {t("gradebook.academicPerformance", { name: child.name })}
           </h2>
           <p className="text-xs text-slate-400 mt-1 font-medium">
-            Classbook view featuring automated grade levels, percentages, and
-            completed milestones.
+            {t("gradebook.classbookView")}
           </p>
         </div>
 
@@ -219,7 +220,7 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0 sm:min-w-[450px]">
           <div className="bg-slate-50 border border-slate-100/75 rounded-xl p-3 text-center">
             <div className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
-              Total Tasks
+              {t("gradebook.totalTasks")}
             </div>
             <div className="text-lg font-black text-slate-800 mt-1">
               {totalTasks}
@@ -227,7 +228,7 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
           </div>
           <div className="bg-slate-50 border border-slate-100/75 rounded-xl p-3 text-center">
             <div className="text-[9px] font-black uppercase tracking-wider text-emerald-600">
-              Graded
+              {t("gradebook.graded")}
             </div>
             <div className="text-lg font-black text-emerald-600 mt-1">
               {gradedTasks}
@@ -273,7 +274,7 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
           />
           <input
             type="text"
-            placeholder="Search task by title or ID..."
+            placeholder={t("gradebook.searchPlaceholder")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-100 hover:border-slate-200 focus:border-indigo-400 focus:bg-white rounded-xl text-xs sm:text-sm font-semibold transition-all focus:ring-0 outline-none"
@@ -418,13 +419,13 @@ export const GradebookModule = ({ child }: GradebookModuleProps) => {
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/30 text-slate-400 text-left">
                 <th className="py-4 px-6 text-[11px] font-black uppercase tracking-wider">
-                  task
+                  {t("gradebook.task")}
                 </th>
                 <th className="py-4 px-6 text-center text-[11px] font-black uppercase tracking-wider w-24">
-                  score
+                  {t("gradebook.score")}
                 </th>
                 <th className="py-4 px-6 text-center text-[11px] font-black uppercase tracking-wider w-28">
-                  percentage
+                  {t("gradebook.percentage")}
                 </th>
                 <th className="py-4 px-6 text-center text-[11px] font-black uppercase tracking-wider w-20">
                   grade

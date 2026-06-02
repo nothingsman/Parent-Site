@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { JetBrains_Mono, Outfit } from 'next/font/google'
 import '@/styles/globals.css'
 import { Providers } from './providers'
+import { LanguageProvider } from '@/lib/i18n'
 
 const fontSans = Outfit({
   subsets: ['latin'],
@@ -26,9 +27,11 @@ export default function RootLayout({
     <html lang="en" className={`${fontSans.variable} ${jetbrains.variable}`} suppressHydrationWarning>
       <body className="antialiased min-h-screen bg-slate-50 font-sans text-slate-900" suppressHydrationWarning>
         <div id="root">
-          <Providers>
-            {children}
-          </Providers>
+          <LanguageProvider>
+            <Providers>
+              {children}
+            </Providers>
+          </LanguageProvider>
         </div>
       </body>
     </html>

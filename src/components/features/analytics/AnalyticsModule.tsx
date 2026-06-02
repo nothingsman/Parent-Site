@@ -25,6 +25,7 @@ import {
 import { Card, SectionLabel } from "@/components/ui";
 import { Child } from "@/types";
 import { getGradeColorClass, getGradeLetter, getProgressBarColor } from "@/lib/gradeUtils";
+import { useTranslation } from "@/lib/i18n";
 
 export interface AnalyticsModuleProps {
   child: Child;
@@ -33,6 +34,7 @@ export interface AnalyticsModuleProps {
 export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
   const [, setActiveSubject] = useState<string | null>(null);
   const [hoveredHeatmapDay, setHoveredHeatmapDay] = useState<{ week: number; dayName: string; count: number } | null>(null);
+  const { t } = useTranslation();
 
   // 1. Performance Overview Data
   const performanceData = useMemo(() => {
@@ -46,7 +48,7 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
 
   // 2. Dynamic Grade Progression Data
   const trendData = useMemo(() => {
-    const timeline = ["Term Start", "Quiz 1", "Assignment 1", "Midterm", "Current"];
+    const timeline = [t("analytics.termStart"), `${t("analytics.quiz")} 1`, `${t("nav.assignments")} 1`, t("analytics.midterm"), t("analytics.current")];
     // Deterministic progression mapped to real grades ending exactly at child score
     const seed = child.id.charCodeAt(child.id.length - 1);
     
@@ -172,13 +174,13 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
           </div>
           <div>
             <span className="text-[10px] font-black tracking-widest text-[#3949ab] bg-[#3949ab]/8 px-2 py-0.5 rounded-md uppercase">
-              Parent Insights Dashboard
+              {t("analytics.parentInsights")}
             </span>
             <h2 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight mt-1">
-              {child.name}&apos;s Academic Analytics
+              {t("analytics.academicAnalytics", { name: child.name })}
             </h2>
             <p className="text-xs text-slate-500 mt-0.5 font-medium">
-              Grade {child.grade} • Section {child.section} • Real-time tracking & analysis
+              {t("app.grade")} {child.grade} \u2022 {t("app.sec")} {child.section}
             </p>
           </div>
         </div>
@@ -187,7 +189,7 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
         <div className="grid grid-cols-2 gap-3 md:w-96">
           <div className="bg-white rounded-2xl border border-slate-100 p-4 flex flex-col justify-between">
             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">
-              OVERALL GRADE
+              {t("analytics.overallGrade")}
             </span>
             <div className="mt-2 flex items-baseline gap-1.5">
               <span className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight">
@@ -202,14 +204,14 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
 
           <div className="bg-white rounded-2xl border border-slate-100 p-4 flex flex-col justify-between">
             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">
-              ATTENDANCE RATE
+              {t("analytics.attendanceRate")}
             </span>
             <div className="mt-2 flex items-baseline gap-1.5">
               <span className="text-2xl sm:text-3xl font-black text-[#3949ab] tracking-tight">
                 {attendancePercentageValue}%
               </span>
               <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md uppercase">
-                EXCELLENT
+                {t("analytics.excellent")}
               </span>
             </div>
             <p className="text-[9px] text-slate-400 mt-1">Directly drives active class interaction</p>
@@ -227,18 +229,18 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
               <div>
                 <SectionLabel>
                   <TrendingUp size={13} className="text-[#3949ab]" />
-                  Performance Overview
+                  {t("analytics.performanceOverview")}
                 </SectionLabel>
                 <h4 className="text-xs text-slate-400 -mt-3.5">
-                  Subject grades compared with term general targets
+                  {t("analytics.subjectComparison")}
                 </h4>
               </div>
               <div className="flex items-center gap-3 text-[10px] font-bold">
                 <span className="flex items-center gap-1 text-slate-600">
-                  <span className="w-2.5 h-2.5 bg-[#3949ab] rounded" /> General Score
+                  <span className="w-2.5 h-2.5 bg-[#3949ab] rounded" /> {t("analytics.generalScore")}
                 </span>
                 <span className="flex items-center gap-1 text-slate-400">
-                  <span className="w-2.5 h-2.5 bg-slate-200 rounded" /> Class Target
+                  <span className="w-2.5 h-2.5 bg-slate-200 rounded" /> {t("analytics.classTarget")}
                 </span>
               </div>
             </div>
@@ -309,10 +311,10 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
               <div>
                 <SectionLabel>
                   <BookOpen size={13} className="text-[#3949ab]" />
-                  Acreage & Grade Progression
+                  {t("analytics.progression")}
                 </SectionLabel>
                 <h4 className="text-xs text-slate-400 -mt-3.5">
-                  Longitudinal progress across assessment intervals
+                  {t("analytics.longitudinal")}
                 </h4>
               </div>
             </div>
@@ -397,10 +399,10 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
             <div>
               <SectionLabel>
                 <CheckCircle2 size={13} className="text-emerald-500" />
-                Work Assignment Stats
+                {t("analytics.workStats")}
               </SectionLabel>
               <h4 className="text-xs text-slate-400 -mt-3.5">
-                Summary of assigned homeworks & reports
+                {t("analytics.summaryHomework")}
               </h4>
             </div>
 
@@ -429,7 +431,7 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
                     {assignmentStats.rate}%
                   </span>
                   <span className="text-[8px] font-black uppercase tracking-widest text-[#10b981] mt-1">
-                    Completed
+                    {t("analytics.completed")}
                   </span>
                 </div>
               </div>
@@ -439,7 +441,7 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
                 <div className="bg-slate-50/50 hover:bg-slate-50 rounded-xl p-2.5 flex items-center justify-between border border-slate-100/50 transition-colors">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span className="text-xs font-semibold text-slate-600">Graded / Completed</span>
+                    <span className="text-xs font-semibold text-slate-600">{t("analytics.gradedCompleted")}</span>
                   </div>
                   <span className="text-xs font-extrabold text-slate-800 bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-md">
                     {assignmentStats.completed} tasks
@@ -449,7 +451,7 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
                 <div className="bg-slate-50/50 hover:bg-slate-50 rounded-xl p-2.5 flex items-center justify-between border border-slate-100/50 transition-colors">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-amber-500" />
-                    <span className="text-xs font-semibold text-slate-600">Due / Pending</span>
+                    <span className="text-xs font-semibold text-slate-600">{t("analytics.duePending")}</span>
                   </div>
                   <span className="text-xs font-extrabold text-slate-800 bg-amber-50 text-amber-700 px-2 py-0.5 rounded-md">
                     {assignmentStats.pending} due
@@ -471,7 +473,7 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
             </div>
             
             <p className="text-[10px] text-center text-slate-400 mt-4 leading-normal italic px-2">
-              *A high completion rate ensures that syllabus foundations are locked in.
+              {t("analytics.completionNote")}
             </p>
           </Card>
         </div>

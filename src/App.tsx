@@ -40,6 +40,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { SidebarItem, ErrorBoundary } from "@/components/ui";
 import ProfileModal from "@/components/features/profile/ProfileModal";
 import SettingsModal from "@/components/features/settings/SettingsModal";
+import { useTranslation } from "@/lib/i18n";
 import { OverviewModule } from "@/components/features/overview";
 import { GradesModule, GradebookModule } from "@/components/features/grades";
 import { AttendanceModule } from "@/components/features/attendance";
@@ -68,6 +69,7 @@ export function getParentDisplayName(parentProfile?: ParentMeResponse): string {
 
 export default function App() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { data: children = [], isLoading, isError, error } = useChildren();
   const { data: parentProfile } = useQuery({
     queryKey: ["parent", "me"],
@@ -144,7 +146,7 @@ export default function App() {
       <div className="h-screen w-full flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-[#3949AB] border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-slate-500 font-medium">Loading...</p>
+          <p className="text-sm text-slate-500 font-medium">{t("app.loading")}</p>
         </div>
       </div>
     );
@@ -154,7 +156,7 @@ export default function App() {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-slate-50">
         <div className="text-center">
-          <p className="text-sm text-red-500 font-medium">{error?.message ?? 'Failed to load data'}</p>
+          <p className="text-sm text-red-500 font-medium">{error?.message ?? t("app.failedToLoad")}</p>
         </div>
       </div>
     );
@@ -164,10 +166,9 @@ export default function App() {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-slate-50 p-6">
         <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm text-center">
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">No linked students yet</h1>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{t("app.noStudentsTitle")}</h1>
           <p className="mt-3 text-sm text-slate-600 font-medium">
-            Your account is active, but there are no students connected to it right now.
-            Please contact the school admin to link your children to this parent account.
+            {t("app.noStudentsDesc")}
           </p>
         </div>
       </div>
@@ -203,14 +204,14 @@ export default function App() {
   };
 
   const navItems = [
-    { icon: LayoutDashboard, label: "Dashboard", module: "Dashboard" },
-    { icon: UserCheck, label: "Attendance", module: "Attendance" },
-    { icon: GraduationCap, label: "Grades", module: "Grades" },
-    { icon: ClipboardList, label: "Assignments", module: "Assignments", badge: badges.Assignments },
-    { icon: BookOpen, label: "Gradebook", module: "Gradebook" },
-    { icon: BarChart3, label: "Analytics", module: "Analytics" },
-    { icon: MessageSquare, label: "Messages", module: "Messages", badge: badges.Messages },
-    { icon: Bell, label: "Notifications", module: "Notifications", badge: badges.Notifications },
+    { icon: LayoutDashboard, label: t("nav.dashboard"), module: "Dashboard" },
+    { icon: UserCheck, label: t("nav.attendance"), module: "Attendance" },
+    { icon: GraduationCap, label: t("nav.grades"), module: "Grades" },
+    { icon: ClipboardList, label: t("nav.assignments"), module: "Assignments", badge: badges.Assignments },
+    { icon: BookOpen, label: t("nav.gradebook"), module: "Gradebook" },
+    { icon: BarChart3, label: t("nav.analytics"), module: "Analytics" },
+    { icon: MessageSquare, label: t("nav.messages"), module: "Messages", badge: badges.Messages },
+    { icon: Bell, label: t("nav.notifications"), module: "Notifications", badge: badges.Notifications },
   ];
 
   const avatarColors = ["bg-[#3949ab]", "bg-[#128267]", "bg-[#c85a23]"];
@@ -233,8 +234,8 @@ export default function App() {
             </button>
           </div>
           <div className="px-4 pb-3 pt-1 border-t border-slate-50 bg-white">
-            <h2 className="text-sm font-semibold text-slate-800">Good morning, {parentName} 👋</h2>
-            <p className="text-xs text-slate-400 mt-0.5 font-medium">{child.name} · Grade {child.grade} · Sec {child.section}</p>
+            <h2 className="text-sm font-semibold text-slate-800">{t("app.goodMorning", { parentName })}</h2>
+            <p className="text-xs text-slate-400 mt-0.5 font-medium">{child.name} · {t("app.grade")} {child.grade} · {t("app.sec")} {child.section}</p>
           </div>
         </div>
 
@@ -246,10 +247,10 @@ export default function App() {
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 z-40 select-none pb-[env(safe-area-inset-bottom)]">
           <div className="grid grid-cols-5 h-16 pt-1">
             {[
-              { icon: LayoutDashboard, label: "Home", module: "Dashboard" },
-              { icon: UserCheck, label: "Attendance", module: "Attendance" },
-              { icon: ClipboardList, label: "Tasks", module: "Assignments", badge: badges.Assignments },
-              { icon: MessageSquare, label: "Messages", module: "Messages", badge: badges.Messages },
+              { icon: LayoutDashboard, label: t("nav.home"), module: "Dashboard" },
+              { icon: UserCheck, label: t("nav.attendance"), module: "Attendance" },
+              { icon: ClipboardList, label: t("nav.tasks"), module: "Assignments", badge: badges.Assignments },
+              { icon: MessageSquare, label: t("nav.messages"), module: "Messages", badge: badges.Messages },
             ].map(({ icon: Icon, label, module, badge }) => (
               <button key={module} onClick={() => { setActiveModule(module); setShowMoreSheet(false); }} className={`flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors min-h-[44px] border-none bg-transparent ${activeModule === module ? "text-[#3949AB]" : "text-slate-400"}`}>
                 <div className="relative">
@@ -261,7 +262,7 @@ export default function App() {
             ))}
             <button onClick={() => setShowMoreSheet(true)} className={`flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors relative min-h-[44px] border-none bg-transparent ${["Grades","Gradebook","Schedule","Notifications","Analytics"].includes(activeModule) ? "text-[#3949AB]" : "text-slate-400"}`}>
               <div className="relative"><Menu size={20} />{badges.Notifications > 0 && <span className="absolute -top-1 -right-1 bg-rose-500 w-2 h-2 rounded-full ring-2 ring-white" />}</div>
-              <span className="text-[10px] font-bold">More</span>
+              <span className="text-[10px] font-bold">{t("app.more")}</span>
             </button>
           </div>
         </div>
@@ -273,16 +274,16 @@ export default function App() {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowMoreSheet(false)} className="absolute inset-0 bg-black/40 backdrop-blur-xs" />
               <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 250 }} className="absolute inset-x-0 bottom-0 bg-white rounded-t-3xl shadow-2xl pb-[calc(2rem+env(safe-area-inset-bottom))] border-t border-slate-100 p-6 flex flex-col gap-6">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-[#3949AB]">More Applications</h3>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-[#3949AB]">{t("app.moreApplications")}</h3>
                   <button onClick={() => setShowMoreSheet(false)} className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 border-none">✕</button>
                 </div>
                 <div className="grid grid-cols-5 gap-2 text-center">
                   {[
-                    { icon: GraduationCap, label: "Grades", module: "Grades" },
-                    { icon: BookOpen, label: "Gradebook", module: "Gradebook" },
-                    { icon: Calendar, label: "Schedule", module: "Schedule" },
-                    { icon: Bell, label: "Notifs", module: "Notifications", badge: badges.Notifications },
-                    { icon: BarChart3, label: "Analytics", module: "Analytics" },
+                    { icon: GraduationCap, label: t("nav.grades"), module: "Grades" },
+                    { icon: BookOpen, label: t("nav.gradebook"), module: "Gradebook" },
+                    { icon: Calendar, label: t("nav.schedule"), module: "Schedule" },
+                    { icon: Bell, label: t("nav.notifications"), module: "Notifications", badge: badges.Notifications },
+                    { icon: BarChart3, label: t("nav.analytics"), module: "Analytics" },
                   ].map(({ icon: Icon, label, module, badge }) => (
                     <button key={module} onClick={() => { setActiveModule(module); setShowMoreSheet(false); }} className="flex flex-col items-center gap-2 cursor-pointer group min-h-[60px] border-none bg-transparent">
                       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all relative ${activeModule === module ? "bg-[#3949AB] text-white shadow-lg" : "bg-slate-50 text-slate-600 group-hover:bg-slate-100"}`}>
@@ -298,7 +299,7 @@ export default function App() {
                     <div className="w-9 h-9 rounded-full bg-[#3949AB] flex items-center justify-center text-white font-bold text-xs">{parentInitials}</div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-slate-900 truncate">{parentName}</p>
-                      <p className="text-[10px] font-medium text-slate-400">Parent Account</p>
+                      <p className="text-[10px] font-medium text-slate-400">{t("app.parentAccount")}</p>
                     </div>
                     <User size={16} className="text-slate-400 shrink-0" />
                   </button>
@@ -360,12 +361,12 @@ export default function App() {
               <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-xs font-bold shrink-0">{child.initials}</div>
             ) : (
               <>
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 leading-none">Viewing child</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 leading-none">{t("app.viewingChild")}</p>
                 <div className="flex items-center gap-3">
                   <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-[10px] font-bold shrink-0">{child.initials}</div>
                   <div className="flex-1 min-w-0">
                     <h4 className="text-[11px] font-bold text-slate-900 truncate leading-tight">{child.name}</h4>
-                    <p className="text-[9px] text-slate-400">Grade {child.grade} · Sec {child.section}</p>
+                    <p className="text-[9px] text-slate-400">{t("app.grade")} {child.grade} · {t("app.sec")} {child.section}</p>
                   </div>
                   <ChevronDown size={12} className="text-slate-400 shrink-0" />
                 </div>
@@ -390,7 +391,7 @@ export default function App() {
                 <>
                   <div className="flex-1 text-left">
                     <p className="text-xs font-bold text-slate-900 uppercase tracking-tight">{parentName}</p>
-                    <p className="text-[10px] font-medium text-slate-400">Parent Account</p>
+                    <p className="text-[10px] font-medium text-slate-400">{t("app.parentAccount")}</p>
                   </div>
                   <ChevronDown size={14} className="text-slate-400" />
                 </>
@@ -447,13 +448,13 @@ export default function App() {
             <div className="absolute inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setIsChildModalOpen(false)} />
             <motion.div initial={{ scale: 0.94, opacity: 0, y: 15 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} transition={{ type: "spring", duration: 0.35 }} className="w-full max-w-md bg-white rounded-3xl shadow-2xl relative z-60 overflow-visible border border-slate-100/80 flex flex-col">
               <div className="pt-6 px-6 pb-4 flex items-start justify-between">
-                <div><h3 className="text-xl font-bold tracking-tight text-slate-900">Switch child</h3><p className="text-sm font-medium text-slate-500 mt-0.5">Bekele family · {children.length} children enrolled</p></div>
+                <div><h3 className="text-xl font-bold tracking-tight text-slate-900">{t("app.switchChild")}</h3><p className="text-sm font-medium text-slate-500 mt-0.5">{t("app.family")} · {children.length} {t("app.childrenEnrolled")}</p></div>
                 <button onClick={() => setIsChildModalOpen(false)} className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200/80 text-slate-500 flex items-center justify-center transition-all cursor-pointer border-none"><X size={16} strokeWidth={2.5} /></button>
               </div>
-              <div className="bg-[#faf8f5] hover:bg-[#faf5ec] border-y border-stone-100/70 py-4 px-6 flex items-center justify-between cursor-pointer transition-colors group select-none" onClick={() => { setToastMessage("Consolidated Family View: Loading assignments, scores, and calendars for all children."); setIsChildModalOpen(false); }}>
+              <div className="bg-[#faf8f5] hover:bg-[#faf5ec] border-y border-stone-100/70 py-4 px-6 flex items-center justify-between cursor-pointer transition-colors group select-none" onClick={() => { setToastMessage(t("app.consolidatedMsg")); setIsChildModalOpen(false); }}>
                 <div className="flex items-center gap-3.5 min-w-0">
                   <div className="w-11 h-11 rounded-full bg-white border border-dashed border-slate-300 flex items-center justify-center shrink-0 shadow-xs"><LayoutGrid size={18} className="text-slate-500" /></div>
-                  <div className="min-w-0"><span className="text-sm font-bold text-slate-800 flex items-center gap-1.5">View all children together <ArrowUpRight size={14} className="text-[#3949ab] shrink-0" /></span><p className="text-xs text-slate-500 font-medium mt-0.5">See combined assignments, scores & alerts</p></div>
+                  <div className="min-w-0"><span className="text-sm font-bold text-slate-800 flex items-center gap-1.5">{t("app.viewAllChildren")} <ArrowUpRight size={14} className="text-[#3949ab] shrink-0" /></span><p className="text-xs text-slate-500 font-medium mt-0.5">{t("app.seeCombined")}</p></div>
                 </div>
                 <ChevronRight size={16} className="text-slate-400 group-hover:translate-x-0.5 transition-transform shrink-0 ml-1" />
               </div>
@@ -464,9 +465,9 @@ export default function App() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1.5">
                         <h4 className="text-sm font-bold text-slate-800 truncate">{c.name}</h4>
-                        {selectedChildIndex === i ? <span className="text-[11px] font-bold text-[#3949ab] shrink-0">Viewing</span> : <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-0.5 transition-transform shrink-0" />}
+                        {selectedChildIndex === i ? <span className="text-[11px] font-bold text-[#3949ab] shrink-0">{t("app.viewing")}</span> : <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-0.5 transition-transform shrink-0" />}
                       </div>
-                      <p className="text-[11px] text-slate-500 font-medium mt-0.5 truncate">Grade {c.grade}{c.section} · {c.subjects.map((s) => s.name).join(", ")}</p>
+                      <p className="text-[11px] text-slate-500 font-medium mt-0.5 truncate">{t("app.grade")} {c.grade}{c.section} · {c.subjects.map((s) => s.name).join(", ")}</p>
                     </div>
                   </div>
                 ))}

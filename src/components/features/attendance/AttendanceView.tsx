@@ -6,6 +6,7 @@ import { Student } from '@/types';
 import type { AttendanceRecordEntry, AttendanceResponse } from '@/types/api';
 import { useLogAbsence } from '@/hooks';
 import { LogAbsenceModal } from './LogAbsenceModal';
+import { useTranslation } from '@/lib/i18n';
 
 export interface AttendanceViewProps {
   student: Student;
@@ -135,6 +136,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
   const [showLogAbsenceModal, setShowLogAbsenceModal] = useState(false);
   const [toast, setToast] = useState<{ show: boolean; message: string } | null>(null);
+  const { t } = useTranslation();
 
   const records = attendance?.records ?? EMPTY_RECORDS;
   const initialMonth = useMemo(() => getInitialMonth(records), [records]);
@@ -180,7 +182,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     return (
       <div className="attendance-module-container">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm font-medium text-slate-500">
-          Loading attendance...
+          Loading {t("nav.attendance").toLowerCase()}...
         </div>
       </div>
     );
@@ -208,45 +210,45 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
           disabled={!selectedRecord?.needsReason}
           className="px-4 py-2 bg-[#3949AB] hover:bg-blue-900 disabled:bg-slate-200 disabled:text-slate-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-900/10 cursor-pointer border-none"
         >
-          {selectedRecord?.needsReason ? 'Add or Confirm Selected Reason' : 'Select a Day Requiring Reason'}
+          {selectedRecord?.needsReason ? 'Add or Confirm Selected Reason' : t("attendance_detail.selectDayReason")}
         </button>
       </div>
 
       <div className="attendance-stats-grid">
         <div className="attendance-stat-card blue">
-          <div className="attendance-stat-label">Term Attendance</div>
+          <div className="attendance-stat-label">{t("attendance_detail.termAttendance")}</div>
           <div className="attendance-stat-value blue">{currentTermAttendance.toFixed(1)}%</div>
           <div className="attendance-stat-foot">
-            {summary ? `${currentDaysPresent + currentExcused} of ${currentTotalDays} days counted` : 'No summary available'}
+            {summary ? t("attendance_detail.daysCounted", { count: String(currentDaysPresent + currentExcused), total: String(currentTotalDays) }) : 'No summary available'}
           </div>
         </div>
 
         <div className="attendance-stat-card navy">
-          <div className="attendance-stat-label">Days Present</div>
+          <div className="attendance-stat-label">{t("attendance_detail.daysPresent")}</div>
           <div className="attendance-stat-value">{currentDaysPresent}</div>
-          <div className="attendance-stat-foot">of {currentTotalDays} school days</div>
+          <div className="attendance-stat-foot">{t("attendance_detail.schoolDays", { count: String(currentTotalDays) })}</div>
         </div>
 
         <div className="attendance-stat-card amber">
-          <div className="attendance-stat-label">Absences / Lates</div>
+          <div className="attendance-stat-label">{t("attendance_detail.absencesLates")}</div>
           <div className="attendance-stat-value amber">
             {currentAbsences} <span className="text-slate-400 font-normal text-sm">/</span> {currentLates}
           </div>
           <div className="attendance-stat-foot flex gap-1.5 mt-0.5">
             <span className="attendance-pill attendance-pill-excused px-1.5 py-0.5 text-[10px] rounded-full">
-              {currentExcused} Excused
+              {currentExcused} {t("attendance_detail.excused")}
             </span>
             <span className="attendance-pill attendance-pill-pending px-1.5 py-0.5 text-[10px] rounded-full">
-              {pendingReasons} Pending
+              {pendingReasons} {t("attendance_detail.pending")}
             </span>
           </div>
         </div>
 
         <div className="attendance-stat-card green">
-          <div className="attendance-stat-label">Policy Standing</div>
+          <div className="attendance-stat-label">{t("attendance_detail.policyStanding")}</div>
           <div className="attendance-stat-value green text-lg mt-1 font-bold">{policyStanding}</div>
           <div className="attendance-stat-foot text-emerald-600 font-medium">
-            ● {policyStanding === 'On Track' ? 'Active Compliance' : policyStanding === 'Watch' ? 'Monitor Attendance' : 'Needs Follow-up'}
+            ● {policyStanding === 'On Track' ? t("attendance_detail.activeCompliance") : policyStanding === 'Watch' ? 'Monitor Attendance' : 'Needs Follow-up'}
           </div>
         </div>
       </div>
@@ -255,8 +257,8 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
         <div className="attendance-card">
           <div className="attendance-card-header">
             <div>
-              <div className="attendance-card-title">Policy Analytics</div>
-              <div className="attendance-card-subtitle">Derived from live attendance totals</div>
+              <div className="attendance-card-title">{t("attendance_detail.policyAnalytics")}</div>
+              <div className="attendance-card-subtitle">{t("attendance_detail.derivedAttendance")}</div>
             </div>
 
             <div className="attendance-tabs">
@@ -270,7 +272,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 onClick={() => setActivePolicyTab('term2')}
                 className={`attendance-tab-btn ${activePolicyTab === 'term2' ? 'active' : ''}`}
               >
-                Term 2
+                {t("attendance_detail.term2")}
               </button>
             </div>
           </div>
@@ -278,9 +280,9 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
           <div className="attendance-card-body">
             <div className="attendance-progress-item">
               <div className="attendance-progress-header">
-                <span className="attendance-progress-label">Unexcused absence limit</span>
+                <span className="attendance-progress-label">{t("attendance_detail.unexcusedLimit")}</span>
                 <span className={`attendance-progress-count ${unexcusedAbsences >= absenceLimit ? 'warn' : 'safe'}`}>
-                  {unexcusedAbsences} / {absenceLimit} used
+                  {t("attendance_detail.used", { count: `${unexcusedAbsences} / ${absenceLimit}` })}
                 </span>
               </div>
               <div className="attendance-progress-track">
@@ -290,15 +292,15 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 />
               </div>
               <div className="attendance-progress-note">
-                {Math.max(absenceLimit - unexcusedAbsences, 0)} remaining before review threshold
+                {t("attendance_detail.remainingThreshold", { count: String(Math.max(absenceLimit - unexcusedAbsences, 0)) })}
               </div>
             </div>
 
             <div className="attendance-progress-item mt-4">
               <div className="attendance-progress-header">
-                <span className="attendance-progress-label">Total absence threshold</span>
+                <span className="attendance-progress-label">{t("attendance_detail.totalThreshold")}</span>
                 <span className={`attendance-progress-count ${totalAbsenceUsage >= totalThreshold ? 'warn' : 'safe'}`}>
-                  {totalAbsenceUsage} / {totalThreshold} used
+                  {t("attendance_detail.used", { count: `${totalAbsenceUsage} / ${totalThreshold}` })}
                 </span>
               </div>
               <div className="attendance-progress-track">
@@ -308,7 +310,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
                 />
               </div>
               <div className="attendance-progress-note">
-                Attendance standing is currently {policyStanding.toLowerCase()}.
+                {t("attendance_detail.standingOk")}
               </div>
             </div>
           </div>
@@ -317,8 +319,8 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
         <div className="attendance-card">
           <div className="attendance-card-header">
             <div>
-              <div className="attendance-card-title font-bold text-slate-800">YTD Breakdown</div>
-              <div className="attendance-card-subtitle font-bold text-slate-400">Summary statistics</div>
+              <div className="attendance-card-title font-bold text-slate-800">{t("attendance_detail.ytdBreakdown")}</div>
+              <div className="attendance-card-subtitle font-bold text-slate-400">{t("attendance_detail.summaryStats")}</div>
             </div>
             <div className="flex items-center gap-1 text-[11px] text-slate-400 font-semibold">
               <Clock size={12} className="text-slate-400" />
@@ -329,39 +331,39 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
           <div className="attendance-card-body">
             <div className="attendance-ytd-grid">
               <div className="attendance-ytd-item transition-transform hover:scale-[1.02]">
-                <div className="attendance-ytd-item-label">Days Present</div>
+                <div className="attendance-ytd-item-label">{t("attendance_detail.daysPresent")}</div>
                 <div className="attendance-ytd-item-value text-slate-800">{currentDaysPresent}</div>
-                <div className="attendance-ytd-item-sub green">Active</div>
+                <div className="attendance-ytd-item-sub green">{t("attendance_detail.active")}</div>
               </div>
 
               <div className="attendance-ytd-item transition-transform hover:scale-[1.02]">
                 <div className="attendance-ytd-item-label">Days Absent</div>
                 <div className="attendance-ytd-item-value text-red-600">{currentAbsences}</div>
-                <div className="attendance-ytd-item-sub red">Tracked</div>
+                <div className="attendance-ytd-item-sub red">{t("attendance_detail.tracked")}</div>
               </div>
 
               <div className="attendance-ytd-item transition-transform hover:scale-[1.02]">
                 <div className="attendance-ytd-item-label">Days Late</div>
                 <div className="attendance-ytd-item-value text-amber-600">{currentLates}</div>
-                <div className="attendance-ytd-item-sub amber">Tardy class</div>
+                <div className="attendance-ytd-item-sub amber">{t("attendance_detail.tardy")}</div>
               </div>
 
               <div className="attendance-ytd-item transition-transform hover:scale-[1.02]">
-                <div className="attendance-ytd-item-label">Excused</div>
+                <div className="attendance-ytd-item-label">{t("attendance_detail.excused")}</div>
                 <div className="attendance-ytd-item-value text-emerald-600">{currentExcused}</div>
-                <div className="attendance-ytd-item-sub green">Approved</div>
+                <div className="attendance-ytd-item-sub green">{t("attendance_detail.approved")}</div>
               </div>
 
               <div className="attendance-ytd-item transition-transform hover:scale-[1.02]">
                 <div className="attendance-ytd-item-label">Pending Reasons</div>
                 <div className="attendance-ytd-item-value text-rose-500">{pendingReasons}</div>
-                <div className="attendance-ytd-item-sub red">Needs note</div>
+                <div className="attendance-ytd-item-sub red">{t("attendance_detail.needsNote")}</div>
               </div>
 
               <div className="attendance-ytd-item transition-transform hover:scale-[1.02]">
-                <div className="attendance-ytd-item-label">Unexcused</div>
+                <div className="attendance-ytd-item-label">{t("attendance_detail.unexcused")}</div>
                 <div className="attendance-ytd-item-value text-slate-800">{summary?.unexcusedAbsences ?? 0}</div>
-                <div className="attendance-ytd-item-sub muted">Derived</div>
+                <div className="attendance-ytd-item-sub muted">{t("attendance_detail.derived")}</div>
               </div>
             </div>
           </div>
@@ -372,7 +374,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
         <div className="attendance-cal-nav">
           <div>
             <div className="attendance-card-title">Calendar — {MONTH_FORMATTER.format(calendarMonth)}</div>
-            <div className="attendance-card-subtitle">Programmatic view</div>
+            <div className="attendance-card-subtitle">{t("attendance_detail.programmatic")}</div>
           </div>
           <div className="flex gap-1.5">
             <button
@@ -460,15 +462,15 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
         <div className="attendance-cal-legend">
           <div className="attendance-legend-item">
             <div className="attendance-legend-swatch present" />
-            <span>Present</span>
+            <span>{t("attendance_detail.present")}</span>
           </div>
           <div className="attendance-legend-item">
             <div className="attendance-legend-swatch absent" />
-            <span>Absent</span>
+            <span>{t("attendance_detail.absent")}</span>
           </div>
           <div className="attendance-legend-item">
             <div className="attendance-legend-swatch late" />
-            <span>Late</span>
+            <span>{t("attendance_detail.late")}</span>
           </div>
           <div className="attendance-legend-item">
             <div className="attendance-legend-swatch excused" />
@@ -476,7 +478,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
           </div>
           <div className="attendance-legend-item">
             <div className="attendance-legend-swatch no-school border border-slate-200" />
-            <span>No record / weekend</span>
+            <span>{t("attendance_detail.weekend")}</span>
           </div>
         </div>
       </div>

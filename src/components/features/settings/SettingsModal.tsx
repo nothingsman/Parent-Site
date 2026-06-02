@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { X, Type, Contrast, Moon, Settings } from "lucide-react";
+import { X, Type, Contrast, Moon, Settings, Globe } from "lucide-react";
+import { useTranslation, type Locale, LOCALES } from "@/lib/i18n";
 
 type FontSize = "small" | "medium" | "large";
 type ContrastMode = "normal" | "high";
@@ -50,6 +51,7 @@ interface SettingsModalProps {
 
 export default function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [settings, setSettings] = useState<Settings>(loadSettings);
+  const { locale, setLocale, t } = useTranslation();
 
   useEffect(() => {
     if (open) {
@@ -67,6 +69,12 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
 
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const fontSizeLabels: Record<FontSize, string> = {
+    small: t("settings.small") === "settings.small" ? "Small" : t("settings.small"),
+    medium: t("settings.medium") === "settings.medium" ? "Medium" : t("settings.medium"),
+    large: t("settings.large") === "settings.large" ? "Large" : t("settings.large"),
   };
 
   return (
@@ -93,7 +101,7 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
                   <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center">
                     <Settings size={18} className="text-slate-600" />
                   </div>
-                  <h2 className="text-lg font-bold text-slate-900">Accessibility Settings</h2>
+                  <h2 className="text-lg font-bold text-slate-900">{t("settings.accessibilityTitle")}</h2>
                 </div>
                 <button
                   type="button"
@@ -106,9 +114,32 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
 
               <div className="px-6 py-5 space-y-6">
                 <SettingRow
+                  icon={<Globe size={18} />}
+                  label={t("settings.language")}
+                  description={t("settings.languageDesc")}
+                >
+                  <div className="flex flex-wrap gap-1.5">
+                    {LOCALES.map((l) => (
+                      <button
+                        key={l.code}
+                        type="button"
+                        onClick={() => setLocale(l.code)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                          locale === l.code
+                            ? "bg-slate-900 text-white"
+                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                        }`}
+                      >
+                        {l.nativeLabel}
+                      </button>
+                    ))}
+                  </div>
+                </SettingRow>
+
+                <SettingRow
                   icon={<Type size={18} />}
-                  label="Font Size"
-                  description="Adjust text size across the dashboard"
+                  label={t("settings.fontSize")}
+                  description={t("settings.fontSizeDesc")}
                 >
                   <div className="flex gap-1.5">
                     {(["small", "medium", "large"] as FontSize[]).map((size) => (
@@ -122,7 +153,7 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
                             : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                         }`}
                       >
-                        {FONT_SIZE_LABELS[size]}
+                        {fontSizeLabels[size]}
                       </button>
                     ))}
                   </div>
@@ -130,8 +161,8 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
 
                 <SettingRow
                   icon={<Contrast size={18} />}
-                  label="High Contrast"
-                  description="Increase color contrast for better visibility"
+                  label={t("settings.highContrast")}
+                  description={t("settings.highContrastDesc")}
                 >
                   <ToggleButton
                     enabled={settings.contrastMode === "high"}
@@ -143,8 +174,8 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
 
                 <SettingRow
                   icon={<Moon size={18} />}
-                  label="Reduced Motion"
-                  description="Minimize animations and transitions"
+                  label={t("settings.reducedMotion")}
+                  description={t("settings.reducedMotionDesc")}
                 >
                   <ToggleButton
                     enabled={settings.reducedMotion === "on"}
@@ -157,7 +188,7 @@ export default function SettingsModal({ open, onClose }: SettingsModalProps) {
 
               <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100">
                 <p className="text-[10px] font-medium text-slate-400 text-center">
-                  Settings are saved locally and persist across sessions.
+                  {t("settings.savedLocally")}
                 </p>
               </div>
             </div>
