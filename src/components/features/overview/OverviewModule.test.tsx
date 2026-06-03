@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import { OverviewModule } from './OverviewModule';
+import { LanguageProvider } from '@/lib/i18n';
 import type { Child, TodaysHomeworkEntry } from '@/types';
 
 const useTodaysHomeworkMock = vi.fn();
@@ -83,10 +84,12 @@ function renderOverview() {
 
   act(() => {
     root.render(
-      <OverviewModule
-        child={child}
-        setActiveModule={vi.fn()}
-      />,
+      <LanguageProvider>
+        <OverviewModule
+          child={child}
+          setActiveModule={vi.fn()}
+        />
+      </LanguageProvider>,
     );
   });
 

@@ -5,6 +5,7 @@ import { createRoot, Root } from 'react-dom/client';
 import { MessagesModule } from './MessagesModule';
 import type { Child } from '@/types';
 import type { ChatMessage } from '@/types/message';
+import { LanguageProvider } from '@/lib/i18n';
 
 const useMessageThreadsMock = vi.fn();
 
@@ -88,6 +89,10 @@ const clearAttachmentMock = vi.fn();
 
 const hookStateByChildId = new Map<string, ReturnType<typeof makeHookState>>();
 
+if (!HTMLElement.prototype.scrollIntoView) {
+  HTMLElement.prototype.scrollIntoView = vi.fn();
+}
+
 function makeHookState(overrides: Partial<ReturnType<typeof baseHookState>> = {}) {
   return {
     ...baseHookState(),
@@ -138,7 +143,11 @@ function renderMessagesModule(child: Child) {
   const root = createRoot(container);
 
   act(() => {
-    root.render(<MessagesModule child={child} />);
+    root.render(
+      <LanguageProvider>
+        <MessagesModule child={child} />
+      </LanguageProvider>
+    );
   });
 
   return {
@@ -146,7 +155,11 @@ function renderMessagesModule(child: Child) {
     root,
     rerender(nextChild: Child) {
       act(() => {
-        root.render(<MessagesModule child={nextChild} />);
+        root.render(
+          <LanguageProvider>
+            <MessagesModule child={nextChild} />
+          </LanguageProvider>
+        );
       });
     },
   };
@@ -220,7 +233,11 @@ describe('MessagesModule', () => {
     }));
 
     act(() => {
-      root?.render(<MessagesModule child={childA} />);
+      root?.render(
+        <LanguageProvider>
+          <MessagesModule child={childA} />
+        </LanguageProvider>
+      );
     });
 
     expect(container?.querySelector('h3')?.textContent).toBe('Mr. Daniel');
@@ -280,6 +297,68 @@ describe('MessagesModule', () => {
     expect(container?.textContent).not.toContain('attachment.txt');
     expect(container?.querySelector('h3')?.textContent).toBe('Mr. Samuel');
     expect(clearAttachmentMock).toHaveBeenCalled();
+    cleanup();
+  });
+
+  it('shows an image preview for image attachments and a download UI for other files', () => {
+    const teacherA = makeContact('thread-1', 'Ms. Hana', 'Mathematics', 'Grade 7 - A', '2026-06-01T08:00:00Z');
+    const imageMessage = {
+      ...makeMessage('1', 'thread-1-teacher', 'See this'),
+      attachment: 'media-image',
+    };
+    const fileMessage = {
+      ...makeMessage('2', 'thread-1-teacher', 'Download this'),
+      attachment: 'media-file',
+    };
+
+    hookStateByChildId.set(childA.id, makeHookState({
+      filteredContacts: [teacherA],
+      activeKey: teacherA.key,
+      activeContact: teacherA,
+      activeMessages: [imageMessage, fileMessage],
+      attachmentMetaById: {
+        'media-image': {
+          id: 'media-image',
+          key: 'media/image',
+          bucket: 'bucket',
+          file_name: 'photo.png',
+          content_type: 'image/png',
+          size: 12,
+          etag: '"etag1"',
+          status: 'uploaded',
+          uploaded_by: 'user-1',
+          created_at: '2026-06-01T08:00:00Z',
+          updated_at: '2026-06-01T08:00:00Z',
+          download_url: 'https://example.com/photo.png',
+        },
+        'media-file': {
+          id: 'media-file',
+          key: 'media/file',
+          bucket: 'bucket',
+          file_name: 'report.pdf',
+          content_type: 'application/pdf',
+          size: 24,
+          etag: '"etag2"',
+          status: 'uploaded',
+          uploaded_by: 'user-1',
+          created_at: '2026-06-01T08:00:00Z',
+          updated_at: '2026-06-01T08:00:00Z',
+          download_url: 'https://example.com/report.pdf',
+        },
+      },
+    }));
+
+    ({ container, root } = renderMessagesModule(childA));
+
+    const image = container?.querySelector('img[alt="photo.png"]') as HTMLImageElement | null;
+    expect(image).not.toBeNull();
+    expect(image?.src).toContain('https://example.com/photo.png');
+
+    const links = Array.from(container?.querySelectorAll('a') ?? []);
+    const downloadLink = links.find((link) => link.textContent?.includes('Download file'));
+    expect(downloadLink).toBeDefined();
+    expect(downloadLink?.getAttribute('href')).toBe('https://example.com/report.pdf');
+
     cleanup();
   });
 });

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, Root } from 'react-dom/client';
 
 import { GradebookModule } from './GradebookModule';
+import { LanguageProvider } from '@/lib/i18n';
 import type { AssignmentEntry, Child } from '@/types';
 
 const useAssignmentsMock = vi.fn();
@@ -75,7 +76,11 @@ function renderModule() {
   const root = createRoot(container);
 
   act(() => {
-    root.render(<GradebookModule child={child} />);
+    root.render(
+      <LanguageProvider>
+        <GradebookModule child={child} />
+      </LanguageProvider>,
+    );
   });
 
   return { container, root };

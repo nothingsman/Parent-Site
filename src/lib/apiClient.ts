@@ -52,14 +52,19 @@ apiClient.interceptors.request.use(
 
 // ── Response interceptor: error normalization ─────────────────────────────────
 let isRefreshing = false;
-let refreshSubscribers: Array<(token: string) => void> = [];
+let refreshSubscribers: Array<{ resolve: (token: string) => void; reject: (error: unknown) => void }> = [];
 
-function subscribeTokenRefresh(cb: (token: string) => void): void {
-  refreshSubscribers.push(cb);
+function subscribeTokenRefresh(resolve: (token: string) => void, reject: (error: unknown) => void): void {
+  refreshSubscribers.push({ resolve, reject });
 }
 
 function onRefreshSuccess(token: string): void {
-  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers.forEach((subscriber) => subscriber.resolve(token));
+  refreshSubscribers = [];
+}
+
+function onRefreshFailure(error: unknown): void {
+  refreshSubscribers.forEach((subscriber) => subscriber.reject(error));
   refreshSubscribers = [];
 }
 
@@ -83,11 +88,11 @@ apiClient.interceptors.response.use(
       }
 
       if (isRefreshing) {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
           subscribeTokenRefresh((token) => {
             originalRequest.headers.Authorization = `Bearer ${token}`;
             resolve(apiClient(originalRequest));
-          });
+          }, reject);
         });
       }
 
@@ -100,6 +105,7 @@ apiClient.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return apiClient(originalRequest);
       } catch {
+        onRefreshFailure(error);
         onUnauthorized();
         return Promise.reject(
           new ApiError(API_ERROR_CODES.UNAUTHORIZED, 'Session expired. Please log in again.', 401)

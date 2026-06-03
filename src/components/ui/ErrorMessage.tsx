@@ -18,7 +18,9 @@ interface ErrorMessageProps {
 }
 
 export function ErrorMessage({ error, className = '' }: ErrorMessageProps) {
-  const message = ERROR_MESSAGES[error.errorCode] ?? error.message;
+  const message = Object.hasOwn(ERROR_MESSAGES, error.errorCode)
+    ? ERROR_MESSAGES[error.errorCode]
+    : error.message;
 
   return (
     <div

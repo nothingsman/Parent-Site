@@ -36,9 +36,6 @@ configureApiClient({
       }
       keysToRemove.forEach((key) => localStorage.removeItem(key));
 
-      // Try to call backend logout to clear the HttpOnly refresh token cookie
-      fetch('/auth/jwt/logout/', { method: 'POST', credentials: 'include' }).catch(() => {});
-
       if (window.location.pathname !== '/login') {
         window.location.replace('/login');
       }

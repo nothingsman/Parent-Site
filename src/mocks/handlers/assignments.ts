@@ -40,6 +40,8 @@ export const assignmentsHandlers = [
       total_marks: String(item.maxScore),
       task_type: index % 2 === 0 ? 'ASSIGNMENT' : 'QUIZ',
       task_type_display: index % 2 === 0 ? 'Assignment' : 'Quiz',
+      percentage: item.score === null ? null : Number(((item.score / item.maxScore) * 100).toFixed(1)),
+      teacher_name: child.subjects.find((subject) => subject.name === item.subject)?.teacher ?? null,
     }));
 
     return HttpResponse.json(items);

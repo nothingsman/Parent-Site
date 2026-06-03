@@ -6,6 +6,21 @@ import type { Child } from '@/types/child';
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000';
 
 export const childrenHandlers = [
+  http.get(`${BASE}/api/parents/my-students/`, () => {
+    const students = CHILDREN.map((child) => ({
+      id: child.id,
+      first_name: child.name.split(' ')[0] ?? child.name,
+      last_name: child.name.split(' ').slice(1).join(' '),
+      section_name: child.section,
+      current_section: child.sectionId,
+      grade_name: child.grade,
+      branch: child.branchId,
+      branch_name: child.branchName,
+    }));
+
+    return HttpResponse.json(students);
+  }),
+
   // GET /api/children — list all children
   http.get(`${BASE}/api/children`, () => {
     const items = CHILDREN;

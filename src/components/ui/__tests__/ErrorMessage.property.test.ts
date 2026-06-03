@@ -14,7 +14,9 @@ const ERROR_MESSAGES: Record<string, string> = {
 };
 
 function resolveErrorMessage(error: ApiError): string {
-  return ERROR_MESSAGES[error.errorCode] ?? error.message;
+  return Object.hasOwn(ERROR_MESSAGES, error.errorCode)
+    ? ERROR_MESSAGES[error.errorCode]
+    : error.message;
 }
 
 /**

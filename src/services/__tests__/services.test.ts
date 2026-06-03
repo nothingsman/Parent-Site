@@ -17,6 +17,7 @@ import { getMessages, sendMessage } from '../messageService';
 import { getNotifications } from '../notificationService';
 import { getSchedule } from '../scheduleService';
 import { getCurrentCalendarDocument } from '../calendarService';
+import { getMediaFile, uploadFileToMedia } from '../mediaService';
 import {
   login,
   requestOtp,
@@ -25,6 +26,7 @@ import {
   completeParentInvitation,
   ensureAccessToken,
   refreshToken,
+  restoreSession,
   logout,
   getAccessToken,
 } from '../authService';
@@ -486,22 +488,52 @@ describe('gradeService', () => {
 
 // ── messageService ────────────────────────────────────────────────────────────
 describe('messageService', () => {
-  it('getMessages calls GET /api/messages and returns items', async () => {
-    const mockItems = [{ id: 'M1', teacherName: 'Mr. Test' }];
+  it('getMessages calls GET /api/chat-threads and maps thread entries', async () => {
+    const mockItems = [{
+      id: 'T-01',
+      parent: 'parent-1',
+      teacher: 'Mr. Test',
+      student: 'STU-001',
+      organization: 'org-1',
+      branch: 'branch-1',
+      unread_count: 2,
+      last_read_at: null,
+      latest_message: null,
+      created_at: '2026-05-30T10:00:00Z',
+      updated_at: '2026-05-30T10:00:00Z',
+    }];
     server.use(
-      http.get(`${BASE}/api/messages`, () =>
-        HttpResponse.json({ success: true, data: { items: mockItems, page: 1, pageSize: 20, total: 1 } })
+      http.get(`${BASE}/api/chat-threads/`, () =>
+        HttpResponse.json({ count: 1, next: null, previous: null, results: mockItems })
       )
     );
     const result = await getMessages();
-    expect(result).toEqual(mockItems);
+    expect(result).toEqual([{
+      id: 'T-01',
+      teacherName: 'Mr. Test',
+      teacherInitials: 'TE',
+      subject: 'Conversation',
+      preview: '',
+      time: '2026-05-30T10:00:00Z',
+      unread: true,
+    }]);
   });
 
-  it('sendMessage calls POST /api/messages/:threadId/reply and returns message', async () => {
-    const mockMsg = { sender: 'parent', text: 'Hello', time: '10:00 AM' };
+  it('sendMessage calls POST /api/chat-threads/:threadId/messages and returns the message', async () => {
+    const mockMsg = {
+      id: 'msg-1',
+      thread: 'T-01',
+      sender: 'parent',
+      sender_id: 'parent-1',
+      text: 'Hello',
+      attachment: null,
+      read_by_ids: ['parent-1'],
+      created_at: '2026-05-30T10:00:00Z',
+      updated_at: '2026-05-30T10:00:00Z',
+    };
     server.use(
-      http.post(`${BASE}/api/messages/T-01/reply`, () =>
-        HttpResponse.json({ success: true, data: mockMsg }, { status: 201 })
+      http.post(`${BASE}/api/chat-threads/T-01/messages/`, () =>
+        HttpResponse.json(mockMsg, { status: 201 })
       )
     );
     const result = await sendMessage('T-01', { text: 'Hello' });
@@ -511,15 +543,30 @@ describe('messageService', () => {
 
 // ── notificationService ───────────────────────────────────────────────────────
 describe('notificationService', () => {
-  it('getNotifications calls GET /api/children/:id/notifications and returns items', async () => {
-    const mockItems = [{ id: 'N1', title: 'Test Notification' }];
+  it('getNotifications calls GET /api/announcements and maps announcement items', async () => {
+    const mockItems = [{
+      id: 'N1',
+      subject: 'Test Notification',
+      message: 'Please review the latest update.',
+      is_urgent: true,
+      scheduled_at: '2026-05-30T10:00:00Z',
+    }];
     server.use(
-      http.get(`${BASE}/api/children/STU-001/notifications`, () =>
-        HttpResponse.json({ success: true, data: { items: mockItems, page: 1, pageSize: 20, total: 1 } })
+      http.get(`${BASE}/api/announcements/`, () =>
+        HttpResponse.json(mockItems)
       )
     );
     const result = await getNotifications('STU-001');
-    expect(result).toEqual(mockItems);
+    expect(result).toEqual([{
+      id: 'N1',
+      title: 'Test Notification',
+      type: 'urgent',
+      category: 'announcement',
+      time: '2026-05-30T10:00:00Z',
+      read: false,
+      detail: 'Please review the latest update.',
+      color: 'red',
+    }]);
   });
 });
 
@@ -585,6 +632,156 @@ describe('calendarService', () => {
       mediaFileId: 'media-1',
       fileName: 'academic-calendar.pdf',
       downloadUrl: 'https://example.com/calendar.pdf',
+    });
+  });
+});
+
+describe('mediaService', () => {
+  it('uploadFileToMedia follows the multipart media workflow and preserves ETags', async () => {
+    const partNumberRequests: number[] = [];
+
+    server.use(
+      http.post(`${BASE}/api/media/upload`, async () =>
+        HttpResponse.json({
+          data: {
+            id: 'media-1',
+            key: 'media/user/media-1/attachment.bin',
+            upload_id: 'upload-1',
+            expires_in: 900,
+          },
+        })
+      ),
+      http.post(`${BASE}/api/media/media-1/multipart/part-url`, async ({ request }) => {
+        const body = await request.json() as { part_number: number; upload_id: string };
+        partNumberRequests.push(body.part_number);
+        return HttpResponse.json({
+          data: {
+            presigned_url: `https://uploads.example.com/media-1/part-${body.part_number}`,
+            expires_in: 900,
+          },
+        });
+      }),
+      http.put('https://uploads.example.com/media-1/part-1', async () => {
+        return new HttpResponse(null, {
+          status: 200,
+          headers: { ETag: '"etag-part-1"' },
+        });
+      }),
+      http.put('https://uploads.example.com/media-1/part-2', async () => {
+        return new HttpResponse(null, {
+          status: 200,
+          headers: { ETag: '"etag-part-2"' },
+        });
+      }),
+      http.post(`${BASE}/api/media/media-1/multipart/complete`, async ({ request }) => {
+        const body = await request.json() as {
+          upload_id: string;
+          parts: Array<{ part_number: number; etag: string }>;
+        };
+
+        expect(body.upload_id).toBe('upload-1');
+        expect(body.parts).toEqual([
+          { part_number: 1, etag: '"etag-part-1"' },
+          { part_number: 2, etag: '"etag-part-2"' },
+        ]);
+
+        return HttpResponse.json({
+          data: {
+            id: 'media-1',
+            status: 'uploaded',
+            etag: '"etag-part-2"',
+            size: 6291457,
+          },
+        });
+      })
+    );
+
+    const file = new File(
+      [new Uint8Array(5 * 1024 * 1024), new Uint8Array(1)],
+      'attachment.bin',
+      { type: 'application/octet-stream' }
+    );
+
+    await expect(uploadFileToMedia(file)).resolves.toBe('media-1');
+    expect(partNumberRequests).toEqual([1, 2]);
+  });
+
+  it('aborts the multipart upload when a part upload fails', async () => {
+    let abortCalled = false;
+
+    server.use(
+      http.post(`${BASE}/api/media/upload`, async () =>
+        HttpResponse.json({
+          data: {
+            id: 'media-2',
+            key: 'media/user/media-2/failure.bin',
+            upload_id: 'upload-2',
+            expires_in: 900,
+          },
+        })
+      ),
+      http.post(`${BASE}/api/media/media-2/multipart/part-url`, async () =>
+        HttpResponse.json({
+          data: {
+            presigned_url: 'https://uploads.example.com/media-2/part-1',
+            expires_in: 900,
+          },
+        })
+      ),
+      http.put('https://uploads.example.com/media-2/part-1', async () =>
+        new HttpResponse(null, { status: 500 })
+      ),
+      http.post(`${BASE}/api/media/media-2/multipart/abort`, async ({ request }) => {
+        const body = await request.json() as { upload_id: string };
+        expect(body.upload_id).toBe('upload-2');
+        abortCalled = true;
+        return HttpResponse.json({
+          data: null,
+          message: 'Multipart upload aborted',
+        });
+      })
+    );
+
+    const file = new File([new Uint8Array(1)], 'failure.bin', {
+      type: 'application/octet-stream',
+    });
+
+    await expect(uploadFileToMedia(file)).rejects.toThrow('Failed to upload attachment.');
+    expect(abortCalled).toBe(true);
+  });
+
+  it('getMediaFile fetches a fresh download URL when metadata omits it', async () => {
+    server.use(
+      http.get(`${BASE}/api/media/media-3`, async () =>
+        HttpResponse.json({
+          data: {
+            id: 'media-3',
+            key: 'media/key',
+            bucket: 'bucket',
+            file_name: 'chat-attachment.pdf',
+            content_type: 'application/pdf',
+            size: 100,
+            etag: '"etag"',
+            status: 'uploaded',
+            uploaded_by: 'user-1',
+            created_at: '2026-06-01T08:00:00Z',
+            updated_at: '2026-06-01T08:00:00Z',
+            download_url: null,
+          },
+        })
+      ),
+      http.get(`${BASE}/api/media/media-3/url`, async () =>
+        HttpResponse.json({
+          data: {
+            download_url: 'https://example.com/chat-attachment.pdf',
+          },
+        })
+      )
+    );
+
+    await expect(getMediaFile('media-3')).resolves.toMatchObject({
+      id: 'media-3',
+      download_url: 'https://example.com/chat-attachment.pdf',
     });
   });
 });
@@ -676,15 +873,35 @@ describe('authService', () => {
   });
 
   it('logout clears access token and calls queryClient.clear()', async () => {
-    server.use(
-      http.post(`${BASE}/api/auth/logout`, () =>
-        HttpResponse.json({ success: true, data: null })
-      )
-    );
     const mockQueryClient = { clear: vi.fn() };
+    let logoutCalls = 0;
+    server.use(
+      http.post(`${BASE}/auth/logout/`, () => {
+        logoutCalls += 1;
+        return HttpResponse.json({}, { status: 204 });
+      })
+    );
+
     await logout(mockQueryClient as never);
+
     expect(getAccessToken()).toBeNull();
     expect(mockQueryClient.clear).toHaveBeenCalledOnce();
+    expect(logoutCalls).toBe(1);
+  });
+
+  it('restoreSession returns null after explicit logout without refreshing', async () => {
+    let refreshCalls = 0;
+    server.use(
+      http.post(`${BASE}/auth/logout/`, () => HttpResponse.json({}, { status: 204 })),
+      http.post(`${BASE}/auth/jwt/refresh/`, () => {
+        refreshCalls += 1;
+        return HttpResponse.json({ access: 'tok-refreshed' });
+      })
+    );
+
+    await logout();
+    await expect(restoreSession()).resolves.toBeNull();
+    expect(refreshCalls).toBe(0);
   });
 
   it('failed service call propagates ApiError', async () => {

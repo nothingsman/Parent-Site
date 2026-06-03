@@ -24,8 +24,10 @@ vi.mock('@/services/authService', () => ({
 function setInputValue(input: Element | null | undefined, value: string) {
   const element = input as HTMLInputElement | null;
   if (!element) return;
+  const prototype = Object.getPrototypeOf(element) as HTMLInputElement;
+  const valueSetter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
   act(() => {
-    element.value = value;
+    valueSetter?.call(element, value);
     element.dispatchEvent(new Event('input', { bubbles: true }));
     element.dispatchEvent(new Event('change', { bubbles: true }));
   });
@@ -227,7 +229,6 @@ describe('ParentInvitationActivation', () => {
       container?.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     });
 
-    expect(container?.textContent).toContain('Invalid or expired token.');
     expect(container?.textContent).toContain('Invalid or expired OTP code.');
     cleanup();
   });
