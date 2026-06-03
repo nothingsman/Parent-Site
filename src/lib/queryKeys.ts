@@ -14,5 +14,7 @@ export const queryKeys = {
   chatThreadMessages: (threadId: string) => ['chat', 'threads', threadId, 'messages'] as const,
   parentMe: () => ['parent', 'me'] as const,
   notifications: (childId: string) => ['notifications', childId] as const,
+  announcements: (childId: string) => ['announcements', childId] as const,
+  behaviourLog: (childId: string) => ['behaviour-log', childId] as const,
   schedule: (childId: string) => ['schedule', childId] as const,
 } as const;

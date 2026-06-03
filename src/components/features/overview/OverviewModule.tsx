@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 
 import { Card, Badge, SectionLabel } from '@/components/ui';
-import { useConfirmHomework, useTodaysHomework } from '@/hooks';
+import { useAnnouncements, useBehaviourLog, useConfirmHomework, useTodaysHomework } from '@/hooks';
 import { Child, TodaysHomeworkEntry } from '@/types';
 import { getGradeColor, getGradeLetter } from '@/lib/utils';
 import { useTranslation } from '@/lib/i18n';
@@ -46,6 +46,18 @@ export const OverviewModule = ({
     error: homeworkError,
   } = useTodaysHomework(child.id);
   const confirmHomeworkMutation = useConfirmHomework(child.id);
+  const {
+    data: behaviourLog = [],
+    isLoading: isBehaviourLoading,
+    isError: isBehaviourError,
+    error: behaviourError,
+  } = useBehaviourLog(child.id);
+  const {
+    data: announcements = [],
+    isLoading: isAnnouncementsLoading,
+    isError: isAnnouncementsError,
+    error: announcementsError,
+  } = useAnnouncements(child);
   const todayLabel = new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
     month: 'long',
@@ -103,6 +115,23 @@ export const OverviewModule = ({
     confirmHomeworkMutation.isPending
     && confirmHomeworkMutation.variables?.assessment === assessmentId
     && confirmHomeworkMutation.variables?.student === studentId;
+
+  const formatAbsoluteDate = (value: string | null | undefined) => {
+    if (!value) {
+      return 'Unknown date';
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(parsed);
+  };
 
   React.useEffect(() => {
     if (!selectedHomework) {
@@ -372,6 +401,110 @@ export const OverviewModule = ({
               ))}
             </div>
           </div>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <div className="flex items-center justify-between mb-4">
+            <SectionLabel>Behaviour Log</SectionLabel>
+            <button
+              onClick={() => setActiveModule("Behaviour")}
+              className="text-[10px] font-bold text-blue-600 hover:underline"
+            >
+              {t("overview.viewAll")} →
+            </button>
+          </div>
+          {isBehaviourLoading && (
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 text-sm font-medium text-slate-500">
+              Loading behavioural updates...
+            </div>
+          )}
+          {isBehaviourError && (
+            <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-700">
+              {behaviourError?.message ?? 'Failed to load behavioural log.'}
+            </div>
+          )}
+          {!isBehaviourLoading && !isBehaviourError && behaviourLog.length === 0 && (
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 text-sm font-medium text-slate-500">
+              No behavioural entries available for this student.
+            </div>
+          )}
+          {!isBehaviourLoading && !isBehaviourError && behaviourLog.slice(0, 3).map((entry) => (
+            <div key={entry.id} className="rounded-2xl border border-slate-100 bg-white px-4 py-3 mb-3 last:mb-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-semibold text-slate-800">{entry.title}</h4>
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+                      entry.type === 'remark'
+                        ? 'bg-sky-50 text-sky-700'
+                        : entry.severity === 'serious'
+                          ? 'bg-rose-50 text-rose-700'
+                          : entry.severity === 'good'
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : 'bg-amber-50 text-amber-700'
+                    }`}>
+                      {entry.type === 'remark' ? 'Remark' : entry.severity}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">{entry.detail}</p>
+                  <p className="mt-2 text-[11px] font-medium text-slate-400">
+                    {entry.teacherName}
+                    {entry.subject ? ` • ${entry.subject}` : ''}
+                    {` • ${formatAbsoluteDate(entry.recordedAt)}`}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between mb-4">
+            <SectionLabel>Recent Announcements</SectionLabel>
+            <button
+              onClick={() => setActiveModule("Announcements")}
+              className="text-[10px] font-bold text-blue-600 hover:underline"
+            >
+              {t("overview.viewAll")} →
+            </button>
+          </div>
+          {isAnnouncementsLoading && (
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 text-sm font-medium text-slate-500">
+              Loading announcements...
+            </div>
+          )}
+          {isAnnouncementsError && (
+            <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-700">
+              {announcementsError?.message ?? 'Failed to load announcements.'}
+            </div>
+          )}
+          {!isAnnouncementsLoading && !isAnnouncementsError && announcements.length === 0 && (
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 text-sm font-medium text-slate-500">
+              No announcements currently match this student.
+            </div>
+          )}
+          {!isAnnouncementsLoading && !isAnnouncementsError && announcements.slice(0, 3).map((announcement) => (
+            <div key={announcement.id} className="rounded-2xl border border-slate-100 bg-white px-4 py-3 mb-3 last:mb-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-semibold text-slate-800">{announcement.subject}</h4>
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+                      announcement.isUrgent ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {announcement.isUrgent ? 'Urgent' : announcement.status}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">{announcement.message}</p>
+                  <p className="mt-2 text-[11px] font-medium text-slate-400">
+                    {announcement.status === 'SCHEDULED' ? 'Scheduled' : 'Effective'} {formatAbsoluteDate(announcement.effectiveAt ?? '')}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
         </Card>
       </div>
 

@@ -20,6 +20,7 @@ import {
   BookOpen,
   Bell,
   Calendar,
+  Megaphone,
   ChevronDown,
   UserCheck,
   GraduationCap,
@@ -48,6 +49,8 @@ import { NotificationsModule } from "@/components/features/notifications";
 import { ScheduleModule } from "@/components/features/schedule";
 import { AnalyticsModule } from "@/components/features/analytics";
 import { PlannerModule } from "@/components/features/planner";
+import { BehaviourModule } from "@/components/features/behaviour";
+import { AnnouncementsModule } from "@/components/features/announcements";
 import { Child } from "@/types";
 import { ParentMeResponse } from "@/types/api";
 
@@ -181,6 +184,7 @@ export default function App() {
   const renderModule = () => {
     switch (activeModule) {
       case "Dashboard": return <OverviewModule child={child} setActiveModule={setActiveModule} onOpenPlanner={openPlanner} />;
+      case "Behaviour": return <BehaviourModule child={child} />;
       case "Grades": return <GradesModule child={child} setActiveModule={setActiveModule} />;
       case "Attendance": return <AttendanceModule child={child} />;
       case "Assignments": return <AssignmentsModule child={child} />;
@@ -188,6 +192,7 @@ export default function App() {
       case "Analytics": return <AnalyticsModule child={child} />;
       case "Messages": return <MessagesModule child={child} />;
       case "Notifications": return <NotificationsModule child={child} />;
+      case "Announcements": return <AnnouncementsModule child={child} />;
       case "Schedule": return <ScheduleModule child={child} />;
       default: return <OverviewModule child={child} setActiveModule={setActiveModule} onOpenPlanner={openPlanner} />;
     }
@@ -201,6 +206,7 @@ export default function App() {
     { icon: BookOpen, label: t("nav.gradebook"), module: "Gradebook" },
     { icon: BarChart3, label: t("nav.analytics"), module: "Analytics" },
     { icon: MessageSquare, label: t("nav.messages"), module: "Messages", badge: badges.Messages },
+    { icon: Megaphone, label: "Announcements", module: "Announcements" },
     { icon: Bell, label: t("nav.notifications"), module: "Notifications", badge: badges.Notifications },
   ];
 
@@ -250,7 +256,7 @@ export default function App() {
                 <span className="text-[10px] font-bold">{label}</span>
               </button>
             ))}
-            <button onClick={() => setShowMoreSheet(true)} className={`flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors relative min-h-[44px] border-none bg-transparent ${["Grades","Gradebook","Schedule","Notifications","Analytics"].includes(activeModule) ? "text-[#3949AB]" : "text-slate-400"}`}>
+            <button onClick={() => setShowMoreSheet(true)} className={`flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors relative min-h-[44px] border-none bg-transparent ${["Grades","Gradebook","Schedule","Announcements","Notifications","Analytics"].includes(activeModule) ? "text-[#3949AB]" : "text-slate-400"}`}>
               <div className="relative"><Menu size={20} />{badges.Notifications > 0 && <span className="absolute -top-1 -right-1 bg-rose-500 w-2 h-2 rounded-full ring-2 ring-white" />}</div>
               <span className="text-[10px] font-bold">{t("app.more")}</span>
             </button>
@@ -267,11 +273,12 @@ export default function App() {
                   <h3 className="text-xs font-black uppercase tracking-wider text-[#3949AB]">{t("app.moreApplications")}</h3>
                   <button onClick={() => setShowMoreSheet(false)} className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 border-none">✕</button>
                 </div>
-                <div className="grid grid-cols-5 gap-2 text-center">
+                <div className="grid grid-cols-3 gap-2 text-center sm:grid-cols-6">
                   {[
                     { icon: GraduationCap, label: t("nav.grades"), module: "Grades" },
                     { icon: BookOpen, label: t("nav.gradebook"), module: "Gradebook" },
                     { icon: Calendar, label: t("nav.schedule"), module: "Schedule" },
+                    { icon: Megaphone, label: "Announcements", module: "Announcements" },
                     { icon: Bell, label: t("nav.notifications"), module: "Notifications", badge: badges.Notifications },
                     { icon: BarChart3, label: t("nav.analytics"), module: "Analytics" },
                   ].map(({ icon: Icon, label, module, badge }) => (

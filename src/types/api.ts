@@ -160,6 +160,36 @@ export interface BranchIdentityResponse {
   logo?: string;
 }
 
+export interface AnnouncementTargetingCriteria {
+  grades: Array<{
+    id: string;
+    name: string;
+    level: number;
+  }>;
+  sections: Array<{
+    id: string;
+    name: string;
+    grade_name: string;
+  }>;
+}
+
+export interface AnnouncementApiRecord {
+  id: string;
+  organization: string;
+  branch: string;
+  subject: string;
+  message: string;
+  attachment?: string | null;
+  scheduled_at?: string | null;
+  is_urgent: boolean;
+  status: 'DRAFT' | 'SENT' | 'SCHEDULED';
+  target_roles: 'PARENTS' | 'TEACHERS' | 'BOTH';
+  targeted_grades: string[];
+  targeted_sections: string[];
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
 export interface SectionTeacherAssignment {
   id: string;
   section_name: string;

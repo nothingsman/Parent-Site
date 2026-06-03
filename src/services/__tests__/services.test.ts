@@ -15,6 +15,8 @@ import { getAttendance, logAbsence } from '../attendanceService';
 import { getGrades } from '../gradeService';
 import { getMessages, sendMessage } from '../messageService';
 import { getNotifications } from '../notificationService';
+import { filterAnnouncementsForChild, getAnnouncements, resolveEffectiveAnnouncementDate } from '../announcementService';
+import { getBehaviourLog, mergeBehaviourLog } from '../behaviourService';
 import { getSchedule } from '../scheduleService';
 import { getCurrentCalendarDocument } from '../calendarService';
 import { getMediaFile, uploadFileToMedia } from '../mediaService';
@@ -522,6 +524,246 @@ describe('notificationService', () => {
     );
     const result = await getNotifications('STU-001');
     expect(result).toEqual(mockItems);
+  });
+});
+
+describe('announcementService', () => {
+  const child: Child = {
+    id: 'STU-001',
+    branchId: 'branch-1',
+    branchName: 'Main Branch',
+    sectionId: 'section-1',
+    name: 'Test Child',
+    initials: 'TC',
+    grade: '7',
+    section: 'A',
+    overallAvg: 0,
+    attendance: 0,
+    assignmentsDue: 0,
+    missingWork: 0,
+    subjects: [],
+    attendance_log: [],
+    homework: [],
+    assignments: [],
+    messages: [],
+    notifications: [],
+    schedule: [],
+  };
+
+  it('uses scheduled_at before updated_at and created_at when resolving effective date', () => {
+    expect(resolveEffectiveAnnouncementDate({
+      scheduled_at: '2026-06-05T06:00:00Z',
+      updated_at: '2026-06-01T10:00:00Z',
+      created_at: '2026-05-30T10:00:00Z',
+    })).toBe('2026-06-05T06:00:00Z');
+  });
+
+  it('filters announcements for the selected child by branch, grade, and section', () => {
+    const result = filterAnnouncementsForChild(
+      [
+        {
+          id: 'ann-1',
+          branchId: 'branch-1',
+          organizationId: 'org-1',
+          subject: 'Whole branch',
+          message: 'Visible',
+          isUrgent: false,
+          status: 'SENT',
+          targetRoles: 'PARENTS',
+          targetGrades: [],
+          targetSections: [],
+          scheduledAt: null,
+          createdAt: '2026-05-29T09:00:00Z',
+          updatedAt: '2026-05-29T09:30:00Z',
+          effectiveAt: '2026-05-29T09:30:00Z',
+        },
+        {
+          id: 'ann-2',
+          branchId: 'branch-1',
+          organizationId: 'org-1',
+          subject: 'Grade match',
+          message: 'Visible',
+          isUrgent: false,
+          status: 'SENT',
+          targetRoles: 'PARENTS',
+          targetGrades: ['grade-7'],
+          targetSections: [],
+          scheduledAt: null,
+          createdAt: '2026-05-29T09:00:00Z',
+          updatedAt: '2026-05-29T09:30:00Z',
+          effectiveAt: '2026-05-29T09:30:00Z',
+        },
+        {
+          id: 'ann-3',
+          branchId: 'branch-1',
+          organizationId: 'org-1',
+          subject: 'Section match',
+          message: 'Visible',
+          isUrgent: false,
+          status: 'SENT',
+          targetRoles: 'PARENTS',
+          targetGrades: [],
+          targetSections: ['section-1'],
+          scheduledAt: null,
+          createdAt: '2026-05-29T09:00:00Z',
+          updatedAt: '2026-05-29T09:30:00Z',
+          effectiveAt: '2026-05-29T09:30:00Z',
+        },
+        {
+          id: 'ann-4',
+          branchId: 'branch-1',
+          organizationId: 'org-1',
+          subject: 'Wrong grade',
+          message: 'Hidden',
+          isUrgent: false,
+          status: 'SENT',
+          targetRoles: 'PARENTS',
+          targetGrades: ['grade-4'],
+          targetSections: [],
+          scheduledAt: null,
+          createdAt: '2026-05-29T09:00:00Z',
+          updatedAt: '2026-05-29T09:30:00Z',
+          effectiveAt: '2026-05-29T09:30:00Z',
+        },
+        {
+          id: 'ann-5',
+          branchId: 'branch-1',
+          organizationId: 'org-1',
+          subject: 'Draft hidden',
+          message: 'Hidden',
+          isUrgent: true,
+          status: 'DRAFT',
+          targetRoles: 'PARENTS',
+          targetGrades: [],
+          targetSections: [],
+          scheduledAt: null,
+          createdAt: '2026-05-29T09:00:00Z',
+          updatedAt: '2026-05-29T09:30:00Z',
+          effectiveAt: '2026-05-29T09:30:00Z',
+        },
+      ],
+      child,
+      {
+        grades: [{ id: 'grade-7', name: 'Grade 7', level: 7 }],
+        sections: [{ id: 'section-1', name: 'A', grade_name: 'Grade 7' }],
+      },
+    );
+
+    expect(result.map((item) => item.id)).toEqual(['ann-1', 'ann-2', 'ann-3']);
+  });
+
+  it('getAnnouncements returns urgent and non-urgent parent announcements', async () => {
+    server.use(
+      http.get(`${BASE}/api/announcements/`, () =>
+        HttpResponse.json([
+          {
+            id: 'ann-1',
+            organization: 'org-1',
+            branch: 'branch-1',
+            subject: 'Urgent update',
+            message: 'Visible',
+            is_urgent: true,
+            status: 'SENT',
+            target_roles: 'PARENTS',
+            targeted_grades: [],
+            targeted_sections: [],
+            created_at: '2026-06-01T08:00:00Z',
+            updated_at: '2026-06-01T08:00:00Z',
+            scheduled_at: null,
+          },
+          {
+            id: 'ann-2',
+            organization: 'org-1',
+            branch: 'branch-1',
+            subject: 'Scheduled section update',
+            message: 'Visible',
+            is_urgent: false,
+            status: 'SCHEDULED',
+            target_roles: 'PARENTS',
+            targeted_grades: [],
+            targeted_sections: ['section-1'],
+            created_at: '2026-06-01T08:00:00Z',
+            updated_at: '2026-06-01T08:00:00Z',
+            scheduled_at: '2026-06-05T06:00:00Z',
+          },
+          {
+            id: 'ann-3',
+            organization: 'org-1',
+            branch: 'branch-1',
+            subject: 'Draft',
+            message: 'Hidden',
+            is_urgent: false,
+            status: 'DRAFT',
+            target_roles: 'PARENTS',
+            targeted_grades: [],
+            targeted_sections: [],
+            created_at: '2026-06-01T08:00:00Z',
+            updated_at: '2026-06-01T08:00:00Z',
+            scheduled_at: null,
+          },
+        ]),
+      ),
+      http.get(`${BASE}/api/announcements/get_targeting_criteria/`, () =>
+        HttpResponse.json({
+          grades: [{ id: 'grade-7', name: 'Grade 7', level: 7 }],
+          sections: [{ id: 'section-1', name: 'A', grade_name: 'Grade 7' }],
+        }),
+      ),
+    );
+
+    const result = await getAnnouncements(child);
+    expect(result).toHaveLength(2);
+    expect(result.some((item) => item.isUrgent)).toBe(true);
+    expect(result.some((item) => !item.isUrgent)).toBe(true);
+    expect(result.some((item) => item.status === 'DRAFT')).toBe(false);
+  });
+});
+
+describe('behaviourService', () => {
+  it('mergeBehaviourLog combines incidents and remarks in descending order', () => {
+    const result = mergeBehaviourLog(
+      'STU-001',
+      [{ id: 'inc-1', date: 'May 12, 2026', type: 'Late Assignment Submission', severity: 'Warning', reporter: 'Abebe T.' }],
+      [{ id: 'rem-1', name: 'Sarah J.', subject: 'English', date: 'May 15', text: 'Strong participation.' }],
+    );
+
+    expect(result[0]?.type).toBe('remark');
+    expect(result[1]?.type).toBe('incident');
+    expect(result[0]?.severity).toBe('remark');
+    expect(result[1]?.severity).toBe('warning');
+  });
+
+  it('getBehaviourLog maps the API shape to parent behaviour entries', async () => {
+    server.use(
+      http.get(`${BASE}/api/students/STU-001/behaviour-log/`, () =>
+        HttpResponse.json({
+          incidents: [
+            {
+              id: 'inc-1',
+              date: '2026-05-12T08:00:00Z',
+              type: 'Late Assignment Submission',
+              severity: 'Warning',
+              reporter: 'Abebe T.',
+              subject: 'Mathematics',
+            },
+          ],
+          remarks: [
+            {
+              id: 'rem-1',
+              name: 'Sarah J.',
+              subject: 'English',
+              date: '2026-05-15T09:30:00Z',
+              text: 'Strong participation.',
+            },
+          ],
+        }),
+      ),
+    );
+
+    const result = await getBehaviourLog('STU-001');
+    expect(result).toHaveLength(2);
+    expect(result[0]?.title).toBe('Teacher Remark');
+    expect(result[1]?.title).toBe('Late Assignment Submission');
   });
 });
 

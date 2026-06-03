@@ -7,11 +7,15 @@ import type { Child, TodaysHomeworkEntry } from '@/types';
 
 const useTodaysHomeworkMock = vi.fn();
 const useConfirmHomeworkMock = vi.fn();
+const useBehaviourLogMock = vi.fn();
+const useAnnouncementsMock = vi.fn();
 const mutateMock = vi.fn();
 
 vi.mock('@/hooks', () => ({
   useTodaysHomework: (...args: unknown[]) => useTodaysHomeworkMock(...args),
   useConfirmHomework: (...args: unknown[]) => useConfirmHomeworkMock(...args),
+  useBehaviourLog: (...args: unknown[]) => useBehaviourLogMock(...args),
+  useAnnouncements: (...args: unknown[]) => useAnnouncementsMock(...args),
 }));
 
 const child: Child = {
@@ -101,10 +105,24 @@ describe('OverviewModule', () => {
     mutateMock.mockReset();
     useTodaysHomeworkMock.mockReset();
     useConfirmHomeworkMock.mockReset();
+    useBehaviourLogMock.mockReset();
+    useAnnouncementsMock.mockReset();
     useConfirmHomeworkMock.mockReturnValue({
       mutate: mutateMock,
       isPending: false,
       variables: undefined,
+    });
+    useBehaviourLogMock.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+    useAnnouncementsMock.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+      error: null,
     });
   });
 
@@ -129,6 +147,77 @@ describe('OverviewModule', () => {
 
     ({ container, root } = renderOverview());
     expect(container?.textContent).toContain("Loading today's homework...");
+    cleanup();
+  });
+
+  it('renders behaviour log above schedules and planners', () => {
+    useTodaysHomeworkMock.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+    useBehaviourLogMock.mockReturnValue({
+      data: [
+        {
+          id: 'beh-1',
+          childId: 'student-1',
+          type: 'incident',
+          title: 'Late Assignment Submission',
+          detail: 'Submitted after the class deadline.',
+          teacherName: 'Abebe T.',
+          subject: 'Mathematics',
+          severity: 'warning',
+          recordedAt: '2026-05-12T08:00:00Z',
+        },
+      ],
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+
+    ({ container, root } = renderOverview());
+    const text = container?.textContent ?? '';
+    expect(text.indexOf('Behaviour Log')).toBeGreaterThan(-1);
+    expect(text.indexOf('Schedules & Planners')).toBeGreaterThan(-1);
+    expect(text.indexOf('Behaviour Log')).toBeLessThan(text.indexOf('Schedules & Planners'));
+    cleanup();
+  });
+
+  it('renders announcement preview rows', () => {
+    useTodaysHomeworkMock.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+    useAnnouncementsMock.mockReturnValue({
+      data: [
+        {
+          id: 'ann-1',
+          branchId: 'branch-1',
+          organizationId: 'org-1',
+          subject: 'Whole-Branch Safety Reminder',
+          message: 'Review revised pick-up timing.',
+          isUrgent: true,
+          status: 'SENT',
+          targetRoles: 'PARENTS',
+          targetGrades: [],
+          targetSections: [],
+          scheduledAt: null,
+          createdAt: '2026-05-27T08:00:00Z',
+          updatedAt: '2026-05-27T08:00:00Z',
+          effectiveAt: '2026-05-27T08:00:00Z',
+        },
+      ],
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+
+    ({ container, root } = renderOverview());
+    expect(container?.textContent).toContain('Recent Announcements');
+    expect(container?.textContent).toContain('Whole-Branch Safety Reminder');
     cleanup();
   });
 
