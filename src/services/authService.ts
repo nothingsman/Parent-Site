@@ -14,6 +14,8 @@ import type {
 // In-memory access token (never persisted to localStorage)
 let accessToken: string | null = null;
 let refreshPromise: Promise<string> | null = null;
+let logoutInFlight: Promise<void> | null = null;
+let loggedOutExplicitly = false;
 
 export function getAccessToken(): string | null {
   return accessToken;
@@ -42,6 +44,7 @@ function isExpiredToken(token: string): boolean {
 export async function login(credentials: PasswordLoginRequest): Promise<AuthResponse> {
   const res = await apiClient.post<JwtLoginResponse>('/auth/jwt/create/', credentials);
   accessToken = res.data.access;
+  loggedOutExplicitly = false;
   return {
     accessToken: res.data.access,
     expiresIn: 0,
@@ -91,34 +94,39 @@ export async function completeParentInvitation(payload: CompleteInvitationReques
 }
 
 export async function logout(queryClient?: import('@tanstack/react-query').QueryClient): Promise<void> {
-  // Call backend to clear the HttpOnly refresh token cookie
-  try {
-    await apiClient.post('/auth/jwt/logout/', {});
-  } catch {
-    // Backend may be unreachable; proceed with client-side cleanup anyway
-  }
-
-  // Clear in-memory tokens
+  loggedOutExplicitly = true;
   accessToken = null;
   refreshPromise = null;
 
-  // Clear React Query cache (all API data)
-  queryClient?.clear();
+  if (!logoutInFlight) {
+    logoutInFlight = apiClient.post('/auth/logout/', {}).catch(() => undefined).then(() => undefined).finally(() => {
+      logoutInFlight = null;
+    });
+  }
 
-  // Clear homework confirmation flags (per-child data)
-  if (typeof window !== 'undefined') {
-    const keysToRemove: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('homework-confirmed-')) {
-        keysToRemove.push(key);
+  try {
+    await logoutInFlight;
+  } finally {
+    queryClient?.clear();
+
+    if (typeof window !== 'undefined') {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('homework-confirmed-')) {
+          keysToRemove.push(key);
+        }
       }
+      keysToRemove.forEach((key) => localStorage.removeItem(key));
     }
-    keysToRemove.forEach((key) => localStorage.removeItem(key));
   }
 }
 
 export async function refreshToken(): Promise<string> {
+  if (loggedOutExplicitly) {
+    throw new Error('Logout in progress');
+  }
+
   if (refreshPromise) {
     return refreshPromise;
   }
@@ -126,6 +134,7 @@ export async function refreshToken(): Promise<string> {
   refreshPromise = (async () => {
     const res = await apiClient.post<RefreshResponse>('/auth/jwt/refresh/', {});
     accessToken = res.data.access;
+    loggedOutExplicitly = false;
     return accessToken;
   })();
 
@@ -137,6 +146,10 @@ export async function refreshToken(): Promise<string> {
 }
 
 export async function ensureAccessToken(forceRefresh = false): Promise<string | null> {
+  if (loggedOutExplicitly) {
+    return null;
+  }
+
   const token = getAccessToken();
   if (!forceRefresh && token && !isExpiredToken(token)) {
     return token;
@@ -168,6 +181,10 @@ export async function resetPasswordConfirm(
 }
 
 export async function restoreSession(): Promise<AuthResponse | null> {
+  if (loggedOutExplicitly) {
+    return null;
+  }
+
   try {
     const newToken = await refreshToken();
     return {

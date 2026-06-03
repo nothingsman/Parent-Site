@@ -26,8 +26,6 @@ import {
   MessageSquare,
   Menu,
   X,
-  LayoutGrid,
-  ArrowUpRight,
   ArrowDown,
   ChevronRight,
   ChevronLeft,
@@ -81,7 +79,6 @@ export default function App() {
   const [isChildModalOpen, setIsChildModalOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [showMoreSheet, setShowMoreSheet] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isPlannerModalOpen, setIsPlannerModalOpen] = useState(false);
   const [plannerTab, setPlannerTab] = useState<"weekly" | "academic">("weekly");
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -89,14 +86,6 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
-
-
-  useEffect(() => {
-    if (toastMessage) {
-      const timer = setTimeout(() => setToastMessage(null), 4500);
-      return () => clearTimeout(timer);
-    }
-  }, [toastMessage]);
 
   useEffect(() => {
     if (!isProfileMenuOpen) return;
@@ -452,13 +441,6 @@ export default function App() {
                 <div><h3 className="text-xl font-bold tracking-tight text-slate-900">{t("app.switchChild")}</h3><p className="text-sm font-medium text-slate-500 mt-0.5">{t("app.family")} · {children.length} {t("app.childrenEnrolled")}</p></div>
                 <button onClick={() => setIsChildModalOpen(false)} className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200/80 text-slate-500 flex items-center justify-center transition-all cursor-pointer border-none"><X size={16} strokeWidth={2.5} /></button>
               </div>
-              <div className="bg-[#faf8f5] hover:bg-[#faf5ec] border-y border-stone-100/70 py-4 px-6 flex items-center justify-between cursor-pointer transition-colors group select-none" onClick={() => { setToastMessage(t("app.consolidatedMsg")); setIsChildModalOpen(false); }}>
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-11 h-11 rounded-full bg-white border border-dashed border-slate-300 flex items-center justify-center shrink-0 shadow-xs"><LayoutGrid size={18} className="text-slate-500" /></div>
-                  <div className="min-w-0"><span className="text-sm font-bold text-slate-800 flex items-center gap-1.5">{t("app.viewAllChildren")} <ArrowUpRight size={14} className="text-[#3949ab] shrink-0" /></span><p className="text-xs text-slate-500 font-medium mt-0.5">{t("app.seeCombined")}</p></div>
-                </div>
-                <ChevronRight size={16} className="text-slate-400 group-hover:translate-x-0.5 transition-transform shrink-0 ml-1" />
-              </div>
               <div className="divide-y divide-slate-100 overflow-hidden rounded-b-3xl">
                 {children.map((c: Child, i: number) => (
                   <div key={c.id} onClick={() => { setSelectedChildIndex(i); setIsChildModalOpen(false); }} className={`flex items-start gap-4 py-4 px-6 cursor-pointer transition-all select-none group relative ${selectedChildIndex === i ? "bg-[#f3f5ff]" : "bg-white hover:bg-slate-50/60"}`}>
@@ -510,15 +492,6 @@ export default function App() {
         open={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
       />
-
-      {/* Toast */}
-      <AnimatePresence>
-        {toastMessage && (
-          <motion.div initial={{ y: 40, opacity: 0, scale: 0.95 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 30, opacity: 0, scale: 0.97 }} className="fixed bottom-24 left-1/2 -translate-x-1/2 z-100 bg-slate-900/95 backdrop-blur-md border border-slate-800 text-white text-xs font-semibold px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-2.5 max-w-[90vw] md:max-w-md select-none">
-            <span>{toastMessage}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
     </ErrorBoundary>
   );
