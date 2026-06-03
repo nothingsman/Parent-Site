@@ -323,10 +323,11 @@ describe('MSW mock layer integration (Task 8.4)', () => {
     expect(result).toHaveLength(allMessages.length);
   });
 
-  it('getNotifications returns notifications for first child', async () => {
+  it('getNotifications returns notifications from the shared inbox mapping', async () => {
     const child = CHILDREN[0];
     const result = await getNotifications(child.id);
-    expect(result).toHaveLength(child.notifications.length);
+    expect(result.length).toBeGreaterThanOrEqual(child.notifications.length);
+    expect(result.some((notification) => notification.title === child.notifications[0]?.title)).toBe(true);
   });
 
   it('getSchedule returns schedule for first child', async () => {

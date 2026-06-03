@@ -1,41 +1,77 @@
 import { http, HttpResponse } from 'msw';
 import { CHILDREN } from '@/lib/mockData';
-import type { ApiResponse, PaginatedResponse } from '@/types/api';
-import type { NotificationEntry } from '@/types/notification';
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000';
 
 export const notificationsHandlers = [
-  // GET /api/children/:id/notifications
-  http.get(`${BASE}/api/children/:id/notifications`, ({ params }) => {
-    const { id } = params as { id: string };
-    const child = CHILDREN.find((c) => c.id === id);
-
-    if (!child) {
-      return HttpResponse.json(
-        {
-          success: false,
-          error: {
-            errorCode: 'NOT_FOUND',
-            message: `Child with id ${id} not found`,
-            details: { childId: id },
-          },
+  http.get(`${BASE}/api/notifications/`, () => {
+    const items = CHILDREN.flatMap((child) =>
+      child.notifications.map((notification) => ({
+        id: notification.id,
+        title: notification.title,
+        message: notification.detail,
+        data: {
+          category: notification.category,
+          is_urgent: notification.type === 'urgent',
+          student_id: child.id,
         },
-        { status: 404 },
-      );
+        read_at: notification.read ? notification.time : null,
+        created_at: notification.time,
+        notifiable: {
+          type: notification.category === 'announcement' ? 'announcement' : 'chat_message',
+          id: notification.id,
+        },
+      })),
+    );
+
+    return HttpResponse.json({
+      count: items.length,
+      next: null,
+      previous: null,
+      results: items,
+    });
+  }),
+
+  http.post(`${BASE}/api/notifications/mark-all-read/`, () => {
+    const updatedCount = CHILDREN.flatMap((child) => child.notifications).filter(
+      (notification) => !notification.read,
+    ).length;
+    return HttpResponse.json({ updated_count: updatedCount });
+  }),
+
+  http.get(`${BASE}/api/notifications/counter/`, () => {
+    const unreadCount = CHILDREN.flatMap((child) => child.notifications).filter(
+      (notification) => !notification.read,
+    ).length;
+    return HttpResponse.json({ unread_count: unreadCount });
+  }),
+
+  http.post(`${BASE}/api/notifications/:id/mark-as-read/`, ({ params }) => {
+    const { id } = params as { id: string };
+    const child = CHILDREN.find((entry) =>
+      entry.notifications.some((notification) => notification.id === id),
+    );
+    const notification = child?.notifications.find((entry) => entry.id === id);
+
+    if (!child || !notification) {
+      return HttpResponse.json({ detail: 'Not found.' }, { status: 404 });
     }
 
-    const items: NotificationEntry[] = child.notifications;
-    const body: ApiResponse<PaginatedResponse<NotificationEntry>> = {
-      success: true,
+    return HttpResponse.json({
+      id: notification.id,
+      title: notification.title,
+      message: notification.detail,
       data: {
-        items,
-        page: 1,
-        pageSize: 20,
-        total: items.length,
+        category: notification.category,
+        is_urgent: notification.type === 'urgent',
+        student_id: child.id,
       },
-      meta: { timestamp: new Date().toISOString() },
-    };
-    return HttpResponse.json(body);
+      read_at: new Date().toISOString(),
+      created_at: notification.time,
+      notifiable: {
+        type: notification.category === 'announcement' ? 'announcement' : 'chat_message',
+        id: notification.id,
+      },
+    });
   }),
 ];

@@ -1,31 +1,60 @@
-import React, { useCallback, useRef, useState } from 'react';
-import { Search, ChevronLeft, Send, Paperclip, User, X, Download } from 'lucide-react';
-import { Child } from '@/types';
-import { useMessageThreads } from '@/hooks';
-import { useTranslation } from '@/lib/i18n';
+import React, { useCallback, useRef, useState } from "react";
+import {
+  Search,
+  ChevronLeft,
+  Send,
+  Paperclip,
+  User,
+  X,
+  Download,
+} from "lucide-react";
+import { Child } from "@/types";
+import { useMessageThreads } from "@/hooks";
+import { useTranslation } from "@/lib/i18n";
 
 export interface MessagesModuleProps {
   child: Child;
+  externalThreadId?: string | null;
 }
 
 function formatTime(value: string | null): string {
-  if (!value) return '';
+  if (!value) return "";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
+  if (Number.isNaN(date.getTime())) return "";
   return new Intl.DateTimeFormat(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   }).format(date);
 }
 
 function isImageAttachment(contentType: string | null | undefined): boolean {
-  return (contentType ?? '').toLowerCase().startsWith('image/');
+  return (contentType ?? "").toLowerCase().startsWith("image/");
+}
+
+function formatDateLabel(value: string): string {
+  const date = new Date(value);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) return "Today";
+  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return date.toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function isSameDay(left: string, right: string): boolean {
+  return new Date(left).toDateString() === new Date(right).toDateString();
 }
 
 export const MessagesModule = ({
   child,
+  externalThreadId = null,
 }: MessagesModuleProps) => {
   const { t } = useTranslation();
   const {
@@ -46,10 +75,10 @@ export const MessagesModule = ({
     clearAttachment,
     attachmentMetaById,
     unreadTotal,
-  } = useMessageThreads(child);
+  } = useMessageThreads(child, { externalThreadId });
 
-  const [mobileView, setMobileView] = useState<'list' | 'thread'>('list');
-  const [composerText, setComposerText] = useState('');
+  const [mobileView, setMobileView] = useState<"list" | "thread">("list");
+  const [composerText, setComposerText] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -58,22 +87,27 @@ export const MessagesModule = ({
   const [showScrollDown, setShowScrollDown] = useState(false);
 
   const scrollToBottom = useCallback((smooth = true) => {
-    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+    messagesEndRef.current?.scrollIntoView({
+      behavior: smooth ? "smooth" : "auto",
+    });
   }, []);
 
   const handleScroll = useCallback(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
-    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
     const nextShowScrollDown = distanceFromBottom > 200;
-    setShowScrollDown((current) => current === nextShowScrollDown ? current : nextShowScrollDown);
+    setShowScrollDown((current) =>
+      current === nextShowScrollDown ? current : nextShowScrollDown,
+    );
   }, []);
 
   React.useEffect(() => {
     if (!activeContact?.key) return;
     if (activeThreadKeyRef.current !== activeContact.key) {
       activeThreadKeyRef.current = activeContact.key;
-      setShowScrollDown((current) => current ? false : current);
+      setShowScrollDown((current) => (current ? false : current));
       scrollToBottom(false);
       return;
     }
@@ -81,43 +115,65 @@ export const MessagesModule = ({
     if (!showScrollDown) {
       scrollToBottom(false);
     }
-  }, [activeContact?.key, activeMessages.length, scrollToBottom, showScrollDown]);
+  }, [
+    activeContact?.key,
+    activeMessages.length,
+    scrollToBottom,
+    showScrollDown,
+  ]);
 
   React.useEffect(() => {
-    setMobileView((current) => current === 'list' ? current : 'list');
-    setComposerText((current) => current ? '' : current);
-    setSelectedFile((current) => current ? null : current);
+    setMobileView((current) => (current === "list" ? current : "list"));
+    setComposerText((current) => (current ? "" : current));
+    setSelectedFile((current) => (current ? null : current));
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
-    setShowScrollDown((current) => current ? false : current);
+    setShowScrollDown((current) => (current ? false : current));
     activeThreadKeyRef.current = null;
     clearAttachment();
   }, [child.id, clearAttachment]);
 
+  React.useEffect(() => {
+    if (!externalThreadId) return;
+    setMobileView("thread");
+  }, [externalThreadId]);
+
+  React.useEffect(() => {
+    if (!externalThreadId) return;
+    setMobileView("thread");
+  }, [externalThreadId]);
+
   const handleSend = async () => {
     const sent = await sendMessage({ text: composerText, file: selectedFile });
     if (sent) {
-      setComposerText('');
+      setComposerText("");
       setSelectedFile(null);
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     }
   };
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-white">
-      <div className={`w-full md:w-[320px] shrink-0 border-r border-slate-100 flex-col ${mobileView === 'list' ? 'flex' : 'hidden md:flex'}`}>
+      <div
+        className={`w-full md:w-[320px] shrink-0 border-r border-slate-100 flex-col ${mobileView === "list" ? "flex" : "hidden md:flex"}`}
+      >
         <div className="border-b border-slate-100 p-5">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-bold tracking-tight text-slate-900">{t("nav.messages")}</h2>
+            <h2 className="text-xl font-bold tracking-tight text-slate-900">
+              {t("nav.messages")}
+            </h2>
             <span className="rounded-full bg-[#3949AB] px-3 py-1 text-[11px] font-bold text-white">
               {unreadTotal}
             </span>
           </div>
           <div className="relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search
+              size={15}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
             <input
               type="text"
               placeholder={t("messages.searchTeachers")}
@@ -137,16 +193,20 @@ export const MessagesModule = ({
                 type="button"
                 onClick={() => {
                   setActiveKey(contact.key);
-                  setMobileView('thread');
+                  setMobileView("thread");
                 }}
-                className={`flex w-full items-start gap-3 px-5 py-4 text-left transition hover:bg-slate-50 ${isActive ? 'border-l-[3px] border-[#3949AB] bg-[#f4f6fc]' : ''}`}
+                className={`flex w-full items-start gap-3 px-5 py-4 text-left transition hover:bg-slate-50 ${isActive ? "border-l-[3px] border-[#3949AB] bg-[#f4f6fc]" : ""}`}
               >
-                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${contact.avatarBg}`}>
+                <div
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${contact.avatarBg}`}
+                >
                   {contact.teacherInitials}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="truncate text-sm font-bold text-slate-900">{contact.teacherName}</p>
+                    <p className="truncate text-sm font-bold text-slate-900">
+                      {contact.teacherName}
+                    </p>
                     <span className="shrink-0 text-[10px] font-semibold text-slate-400">
                       {formatTime(contact.updatedAt)}
                     </span>
@@ -154,7 +214,9 @@ export const MessagesModule = ({
                   <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-indigo-600">
                     {contact.subjectName}
                   </p>
-                  <p className="truncate text-xs font-medium text-slate-500">{contact.latestPreview}</p>
+                  <p className="truncate text-xs font-medium text-slate-500">
+                    {contact.latestPreview}
+                  </p>
                 </div>
                 {contact.unreadCount > 0 && (
                   <span className="mt-1 rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-bold text-white">
@@ -173,23 +235,29 @@ export const MessagesModule = ({
         </div>
       </div>
 
-      <div className={`flex-1 flex-col ${mobileView === 'thread' ? 'flex' : 'hidden md:flex'}`}>
+      <div
+        className={`flex-1 flex-col ${mobileView === "thread" ? "flex" : "hidden md:flex"}`}
+      >
         {activeContact ? (
           <>
             <div className="flex items-center justify-between border-b border-slate-100 bg-white p-5">
               <div className="flex min-w-0 items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => setMobileView('list')}
+                  onClick={() => setMobileView("list")}
                   className="rounded-xl p-2 text-[#3949AB] md:hidden"
                 >
                   <ChevronLeft size={18} />
                 </button>
-                <div className={`flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold text-white ${activeContact.avatarBg}`}>
+                <div
+                  className={`flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold text-white ${activeContact.avatarBg}`}
+                >
                   {activeContact.teacherInitials}
                 </div>
                 <div className="min-w-0">
-                  <h3 className="truncate text-base font-bold text-slate-900">{activeContact.teacherName}</h3>
+                  <h3 className="truncate text-base font-bold text-slate-900">
+                    {activeContact.teacherName}
+                  </h3>
                   <div className="mt-1 flex items-center gap-2 text-xs font-semibold text-slate-500">
                     <span>{activeContact.subjectName}</span>
                     <span>·</span>
@@ -204,14 +272,17 @@ export const MessagesModule = ({
               onScroll={handleScroll}
               className="relative flex-1 overflow-y-auto bg-slate-50/70 p-5"
             >
-              {!activeContact.existingThreadId && activeMessages.length === 0 && (
-                <div className="mb-4 rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-700">
-                  {t("messages.firstMessageInfo")}
-                </div>
-              )}
+              {!activeContact.existingThreadId &&
+                activeMessages.length === 0 && (
+                  <div className="mb-4 rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-700">
+                    {t("messages.firstMessageInfo")}
+                  </div>
+                )}
 
               {messagesLoading && (
-                <div className="text-sm text-slate-400">{t("messages.loading")}</div>
+                <div className="text-sm text-slate-400">
+                  {t("messages.loading")}
+                </div>
               )}
 
               {!messagesLoading && activeMessages.length === 0 && (
@@ -220,88 +291,151 @@ export const MessagesModule = ({
                     <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-50 text-[#3949AB]">
                       <User size={22} className="stroke-[2.5]" />
                     </div>
-                    <h3 className="text-base font-bold text-slate-900">{t("messages.noMessagesYet")}</h3>
+                    <h3 className="text-base font-bold text-slate-900">
+                      {t("messages.noMessagesYet")}
+                    </h3>
                     <p className="mt-2 text-sm font-medium text-slate-500">
-                      {t("messages.startConversation", { name: activeContact.teacherName })}
+                      {t("messages.startConversation", {
+                        name: activeContact.teacherName,
+                      })}
                     </p>
                   </div>
                 </div>
               )}
 
-              <div className="space-y-4">
-                {activeMessages.map((message) => {
+              <div className="space-y-1">
+                {activeMessages.map((message, index) => {
                   const isOwn = message.sender_id === currentUserId;
-                  const attachment = message.attachment ? attachmentMetaById[message.attachment] : null;
-                  const imageAttachment = attachment && isImageAttachment(attachment.content_type);
+                  const attachment = message.attachment
+                    ? attachmentMetaById[message.attachment]
+                    : null;
+                  const imageAttachment =
+                    attachment && isImageAttachment(attachment.content_type);
                   const seen = !isOwn
                     ? false
-                    : message.read_by_ids.some((readerId) => readerId !== currentUserId);
+                    : message.read_by_ids.some(
+                        (readerId) => readerId !== currentUserId,
+                      );
+                  const previousMessage =
+                    index > 0 ? activeMessages[index - 1] : null;
+                  const showAvatar =
+                    !isOwn &&
+                    (!previousMessage ||
+                      previousMessage.sender_id !== message.sender_id);
+                  const showDateSeparator =
+                    !previousMessage ||
+                    !isSameDay(previousMessage.created_at, message.created_at);
 
                   return (
-                    <div key={message.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[85%] ${isOwn ? '' : 'min-w-0'}`}>
-                        <div className={`rounded-2xl px-4 py-3 shadow-sm ${isOwn ? 'bg-[#3949AB] text-white' : 'bg-white text-slate-900'}`}>
-                          {message.text && <p className="whitespace-pre-wrap text-sm">{message.text}</p>}
-                          {attachment && (
-                            imageAttachment && attachment.download_url ? (
-                              <a
-                                href={attachment.download_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="mt-3 block"
-                              >
-                                <img
-                                  src={attachment.download_url}
-                                  alt={attachment.file_name}
-                                  className="max-h-64 w-full rounded-xl object-cover"
-                                />
-                                <div className={`mt-2 rounded-xl border px-3 py-2 text-sm ${isOwn ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`}>
-                                  <p className="truncate font-semibold">{attachment.file_name}</p>
-                                  <p className={`mt-1 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
-                                    Tap to view full image
-                                  </p>
-                                </div>
-                              </a>
-                            ) : (
-                              <div
-                                className={`mt-3 rounded-xl border px-3 py-2 text-sm ${isOwn ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isOwn ? 'bg-white/10 text-white' : 'bg-white text-slate-600'}`}>
-                                    <Download size={16} />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="truncate font-semibold">{attachment.file_name}</p>
-                                    <p className={`mt-1 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
-                                      {attachment.content_type}
+                    <React.Fragment key={message.id}>
+                      {showDateSeparator && (
+                        <div className="flex items-center gap-3 py-3">
+                          <div className="flex-1 border-t border-slate-200" />
+                          <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                            {formatDateLabel(message.created_at)}
+                          </span>
+                          <div className="flex-1 border-t border-slate-200" />
+                        </div>
+                      )}
+                      <div
+                        className={`flex ${isOwn ? "justify-end" : "justify-start"} ${showAvatar ? "mt-3" : "mt-0.5"}`}
+                      >
+                        {!isOwn && (
+                          <div
+                            className={`mr-2 flex shrink-0 items-end ${showAvatar ? "" : "invisible"}`}
+                          >
+                            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-600">
+                              {activeContact.teacherInitials}
+                            </div>
+                          </div>
+                        )}
+                        <div
+                          className={`max-w-[85%] ${isOwn ? "" : "min-w-0"}`}
+                        >
+                          <div
+                            className={`rounded-2xl px-4 py-3 shadow-sm ${isOwn ? "bg-[#3949AB] text-white" : "bg-white text-slate-900"}`}
+                          >
+                            {message.text && (
+                              <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                                {message.text}
+                              </p>
+                            )}
+                            {attachment &&
+                              (imageAttachment && attachment.download_url ? (
+                                <a
+                                  href={attachment.download_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="mt-3 block"
+                                >
+                                  <img
+                                    src={attachment.download_url}
+                                    alt={attachment.file_name}
+                                    className="max-h-64 w-full rounded-xl object-cover"
+                                  />
+                                  <div
+                                    className={`mt-2 rounded-xl border px-3 py-2 text-sm ${isOwn ? "border-white/20 bg-white/10 text-white" : "border-slate-200 bg-slate-50 text-slate-800"}`}
+                                  >
+                                    <p className="truncate font-semibold">
+                                      {attachment.file_name}
+                                    </p>
+                                    <p
+                                      className={`mt-1 text-xs ${isOwn ? "text-white/70" : "text-slate-500"}`}
+                                    >
+                                      Tap to view full image
                                     </p>
                                   </div>
+                                </a>
+                              ) : (
+                                <div
+                                  className={`mt-3 rounded-xl border px-3 py-2 text-sm ${isOwn ? "border-white/20 bg-white/10 text-white" : "border-slate-200 bg-slate-50 text-slate-800"}`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div
+                                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isOwn ? "bg-white/10 text-white" : "bg-white text-slate-600"}`}
+                                    >
+                                      <Download size={16} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="truncate font-semibold">
+                                        {attachment.file_name}
+                                      </p>
+                                      <p
+                                        className={`mt-1 text-xs ${isOwn ? "text-white/70" : "text-slate-500"}`}
+                                      >
+                                        {attachment.content_type}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {attachment.download_url ? (
+                                    <a
+                                      href={attachment.download_url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className={`mt-3 inline-flex items-center gap-2 text-xs font-semibold ${isOwn ? "text-white" : "text-[#3949AB]"}`}
+                                    >
+                                      <Download size={14} />
+                                      Download file
+                                    </a>
+                                  ) : (
+                                    <p
+                                      className={`mt-3 text-xs ${isOwn ? "text-white/70" : "text-slate-500"}`}
+                                    >
+                                      Download link unavailable
+                                    </p>
+                                  )}
                                 </div>
-                                {attachment.download_url ? (
-                                  <a
-                                    href={attachment.download_url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className={`mt-3 inline-flex items-center gap-2 text-xs font-semibold ${isOwn ? 'text-white' : 'text-[#3949AB]'}`}
-                                  >
-                                    <Download size={14} />
-                                    Download file
-                                  </a>
-                                ) : (
-                                  <p className={`mt-3 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
-                                    Download link unavailable
-                                  </p>
-                                )}
-                              </div>
-                            )
-                          )}
-                        </div>
-                        <div className={`mt-2 flex items-center gap-2 px-1 text-[11px] ${isOwn ? 'justify-end' : 'justify-start'} text-slate-400`}>
-                          <span>{formatTime(message.created_at)}</span>
-                          {seen && <span>{t("messages.seen")}</span>}
+                              ))}
+                          </div>
+                          <div
+                            className={`mt-2 flex items-center gap-2 px-1 text-[11px] ${isOwn ? "justify-end" : "justify-start"} text-slate-400`}
+                          >
+                            <span>{formatTime(message.created_at)}</span>
+                            {seen && <span>{t("messages.seen")}</span>}
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    </React.Fragment>
                   );
                 })}
                 <div ref={messagesEndRef} />
@@ -334,7 +468,7 @@ export const MessagesModule = ({
                     onClick={() => {
                       setSelectedFile(null);
                       clearAttachment();
-                      if (fileInputRef.current) fileInputRef.current.value = '';
+                      if (fileInputRef.current) fileInputRef.current.value = "";
                     }}
                     className="rounded-full p-1 text-slate-400 hover:bg-slate-200"
                   >
@@ -377,7 +511,7 @@ export const MessagesModule = ({
                 <button
                   type="button"
                   onClick={handleSend}
-                  disabled={isSending || uploadState.status === 'uploading'}
+                  disabled={isSending || uploadState.status === "uploading"}
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#3949AB] text-white transition hover:bg-[#2f3d93] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Send size={18} />
@@ -388,7 +522,9 @@ export const MessagesModule = ({
         ) : (
           <div className="flex h-full items-center justify-center bg-slate-50/60 p-6 text-center">
             <div>
-              <h3 className="text-base font-bold text-slate-900">{t("messages.noTeachers")}</h3>
+              <h3 className="text-base font-bold text-slate-900">
+                {t("messages.noTeachers")}
+              </h3>
               <p className="mt-2 text-sm text-slate-500">
                 {t("messages.noAssignments")}
               </p>

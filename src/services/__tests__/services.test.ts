@@ -14,7 +14,12 @@ import { confirmHomework, getAssignments, getTodaysHomework } from '../assignmen
 import { getAttendance, logAbsence } from '../attendanceService';
 import { getGrades } from '../gradeService';
 import { getMessages, sendMessage } from '../messageService';
-import { getNotifications } from '../notificationService';
+import {
+  getNotificationCounter,
+  getNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from '../notificationService';
 import { getSchedule } from '../scheduleService';
 import { getCurrentCalendarDocument } from '../calendarService';
 import { getMediaFile, uploadFileToMedia } from '../mediaService';
@@ -513,15 +518,223 @@ describe('messageService', () => {
 
 // ── notificationService ───────────────────────────────────────────────────────
 describe('notificationService', () => {
-  it('getNotifications calls GET /api/children/:id/notifications and returns items', async () => {
-    const mockItems = [{ id: 'N1', title: 'Test Notification' }];
+  it('getNotifications calls GET /api/notifications and maps items', async () => {
     server.use(
-      http.get(`${BASE}/api/children/STU-001/notifications`, () =>
-        HttpResponse.json({ success: true, data: { items: mockItems, page: 1, pageSize: 20, total: 1 } })
+      http.get(`${BASE}/api/notifications/`, () =>
+        HttpResponse.json({
+          count: 1,
+          next: null,
+          previous: null,
+          results: [{
+            id: 'N1',
+            title: 'Test Notification',
+            message: 'Body',
+            data: { category: 'announcement', is_urgent: true },
+            read_at: null,
+            created_at: '2026-06-01T08:00:00Z',
+            notifiable: { type: 'announcement', id: 'ANN-1' },
+          }],
+        })
       )
     );
     const result = await getNotifications('STU-001');
-    expect(result).toEqual(mockItems);
+    expect(result).toEqual([{
+      id: 'N1',
+      title: 'Test Notification',
+      type: 'urgent',
+      category: 'announcement',
+      time: '2026-06-01T08:00:00Z',
+      read: false,
+      detail: 'Body',
+      icon: 'Star',
+      color: 'red',
+    }]);
+  });
+
+  it('getNotifications maps assignment, grade, and attendance categories to UI metadata', async () => {
+    server.use(
+      http.get(`${BASE}/api/notifications/`, () =>
+        HttpResponse.json({
+          count: 3,
+          next: null,
+          previous: null,
+          results: [
+            {
+              id: 'N2',
+              title: 'New Assignment',
+              message: 'Worksheet assigned',
+              data: { category: 'assignment' },
+              read_at: null,
+              created_at: '2026-06-01T08:00:00Z',
+              notifiable: { type: 'assessment', id: 'ASM-1' },
+            },
+            {
+              id: 'N3',
+              title: 'Quiz Graded',
+              message: 'Scored 8/10',
+              data: { category: 'grade' },
+              read_at: null,
+              created_at: '2026-06-01T09:00:00Z',
+              notifiable: { type: 'assessment_result', id: 'RES-1' },
+            },
+            {
+              id: 'N4',
+              title: 'Late Arrival Recorded',
+              message: 'Arrived late',
+              data: { category: 'attendance', status: 'LATE' },
+              read_at: null,
+              created_at: '2026-06-01T10:00:00Z',
+              notifiable: { type: 'attendance', id: 'ATT-1' },
+            },
+          ],
+        })
+      )
+    );
+
+    await expect(getNotifications('STU-001')).resolves.toEqual([
+      {
+        id: 'N2',
+        title: 'New Assignment',
+        type: 'info',
+        category: 'assignment',
+        time: '2026-06-01T08:00:00Z',
+        read: false,
+        detail: 'Worksheet assigned',
+        icon: 'ClipboardList',
+        color: 'amber',
+      },
+      {
+        id: 'N3',
+        title: 'Quiz Graded',
+        type: 'success',
+        category: 'grade',
+        time: '2026-06-01T09:00:00Z',
+        read: false,
+        detail: 'Scored 8/10',
+        icon: 'Star',
+        color: 'green',
+      },
+      {
+        id: 'N4',
+        title: 'Late Arrival Recorded',
+        type: 'info',
+        category: 'attendance',
+        time: '2026-06-01T10:00:00Z',
+        read: false,
+        detail: 'Arrived late',
+        icon: 'Clock',
+        color: 'amber',
+      },
+    ]);
+  });
+
+  it('getNotifications maps insight notifications and filters by child id', async () => {
+    server.use(
+      http.get(`${BASE}/api/notifications/`, () =>
+        HttpResponse.json({
+          count: 2,
+          next: null,
+          previous: null,
+          results: [
+            {
+              id: 'N5',
+              title: 'Academic insight',
+              message: 'Recent scores suggest extra support may help.',
+              data: {
+                category: 'insight',
+                insight_id: 'INS-1',
+                student_id: 'STU-001',
+                target_route: '/notifications?insightId=INS-1',
+                risk_band: 'LOW',
+              },
+              read_at: null,
+              created_at: '2026-06-01T11:00:00Z',
+              notifiable: { type: 'student_insight', id: 'INS-1' },
+            },
+            {
+              id: 'N6',
+              title: 'Other child insight',
+              message: 'Should be filtered out',
+              data: {
+                category: 'insight',
+                insight_id: 'INS-2',
+                student_id: 'STU-999',
+                risk_band: 'MEDIUM',
+              },
+              read_at: null,
+              created_at: '2026-06-01T12:00:00Z',
+              notifiable: { type: 'student_insight', id: 'INS-2' },
+            },
+          ],
+        })
+      )
+    );
+
+    await expect(getNotifications('STU-001')).resolves.toEqual([
+      {
+        id: 'N5',
+        title: 'Academic insight',
+        type: 'info',
+        category: 'insight',
+        time: '2026-06-01T11:00:00Z',
+        read: false,
+        detail: 'Recent scores suggest extra support may help.',
+        icon: 'Info',
+        color: 'blue',
+        insightId: 'INS-1',
+        studentId: 'STU-001',
+        targetRoute: '/notifications?insightId=INS-1',
+        riskBand: 'LOW',
+      },
+    ]);
+  });
+
+  it('markNotificationRead posts to the mark-as-read endpoint', async () => {
+    server.use(
+      http.post(`${BASE}/api/notifications/N1/mark-as-read/`, () =>
+        HttpResponse.json({
+          id: 'N1',
+          title: 'Test Notification',
+          message: 'Body',
+          data: { category: 'announcement' },
+          read_at: '2026-06-01T08:05:00Z',
+          created_at: '2026-06-01T08:00:00Z',
+          notifiable: { type: 'announcement', id: 'ANN-1' },
+        })
+      )
+    );
+
+    await expect(markNotificationRead('N1')).resolves.toEqual({
+      id: 'N1',
+      title: 'Test Notification',
+      type: 'info',
+      category: 'announcement',
+      time: '2026-06-01T08:00:00Z',
+      read: true,
+      detail: 'Body',
+      icon: 'Info',
+      color: 'blue',
+    });
+  });
+
+  it('markAllNotificationsRead posts to the collection action', async () => {
+    server.use(
+      http.post(`${BASE}/api/notifications/mark-all-read/`, () =>
+        HttpResponse.json({ updated_count: 3 })
+      )
+    );
+
+    await expect(markAllNotificationsRead()).resolves.toEqual({ updatedCount: 3 });
+  });
+
+  it('getNotificationCounter returns unread_count', async () => {
+    server.use(
+      http.get(`${BASE}/api/notifications/counter/`, () =>
+        HttpResponse.json({ unread_count: 4 })
+      )
+    );
+
+    await expect(getNotificationCounter()).resolves.toEqual({ unread_count: 4 });
   });
 });
 
