@@ -91,6 +91,11 @@ export interface MultipartCompleteResponse {
   size: number;
 }
 
+export interface MediaUploadAbortResponse {
+  data: null;
+  message: string | null;
+}
+
 export interface ChatAttachmentFile {
   id: string;
   file_name: string;

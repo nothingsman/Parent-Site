@@ -41,9 +41,6 @@
     "switchChild": "Switch Child",
     "family": "Bekele Family",
     "childrenEnrolled": "Children Enrolled",
-    "consolidatedMsg": "Consolidated family view: Loading assignments, grades, and calendars for all children.",
-    "viewAllChildren": "View all children together",
-    "seeCombined": "See combined assignments, grades, and alerts",
     "viewing": "Viewing"
   },
   "login": {

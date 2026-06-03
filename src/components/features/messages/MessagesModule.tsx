@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { Search, ChevronLeft, Send, Paperclip, User, Wifi, WifiOff, X } from 'lucide-react';
+import { Search, ChevronLeft, Send, Paperclip, User, X, Download } from 'lucide-react';
 import { Child } from '@/types';
 import { useMessageThreads } from '@/hooks';
 import { useTranslation } from '@/lib/i18n';
@@ -20,6 +20,10 @@ function formatTime(value: string | null): string {
   }).format(date);
 }
 
+function isImageAttachment(contentType: string | null | undefined): boolean {
+  return (contentType ?? '').toLowerCase().startsWith('image/');
+}
+
 export const MessagesModule = ({
   child,
 }: MessagesModuleProps) => {
@@ -34,7 +38,6 @@ export const MessagesModule = ({
     threadsLoading,
     isSending,
     sendError,
-    websocketState,
     uploadState,
     searchTerm,
     setSearchTerm,
@@ -91,13 +94,6 @@ export const MessagesModule = ({
     activeThreadKeyRef.current = null;
     clearAttachment();
   }, [child.id, clearAttachment]);
-
-  const statusLabel =
-    websocketState === 'connected'
-      ? t("messages.live")
-      : websocketState === 'connecting' || websocketState === 'reconnecting'
-        ? t("messages.connecting")
-        : t("messages.offline");
 
   const handleSend = async () => {
     const sent = await sendMessage({ text: composerText, file: selectedFile });
@@ -201,10 +197,6 @@ export const MessagesModule = ({
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-500">
-                {websocketState === 'connected' ? <Wifi size={14} /> : <WifiOff size={14} />}
-                <span>{statusLabel}</span>
-              </div>
             </div>
 
             <div
@@ -240,6 +232,7 @@ export const MessagesModule = ({
                 {activeMessages.map((message) => {
                   const isOwn = message.sender_id === currentUserId;
                   const attachment = message.attachment ? attachmentMetaById[message.attachment] : null;
+                  const imageAttachment = attachment && isImageAttachment(attachment.content_type);
                   const seen = !isOwn
                     ? false
                     : message.read_by_ids.some((readerId) => readerId !== currentUserId);
@@ -250,17 +243,57 @@ export const MessagesModule = ({
                         <div className={`rounded-2xl px-4 py-3 shadow-sm ${isOwn ? 'bg-[#3949AB] text-white' : 'bg-white text-slate-900'}`}>
                           {message.text && <p className="whitespace-pre-wrap text-sm">{message.text}</p>}
                           {attachment && (
-                            <a
-                              href={attachment.download_url ?? '#'}
-                              target="_blank"
-                              rel="noreferrer"
-                              className={`mt-3 block rounded-xl border px-3 py-2 text-sm ${isOwn ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`}
-                            >
-                              <p className="truncate font-semibold">{attachment.file_name}</p>
-                              <p className={`mt-1 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
-                                {attachment.content_type}
-                              </p>
-                            </a>
+                            imageAttachment && attachment.download_url ? (
+                              <a
+                                href={attachment.download_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-3 block"
+                              >
+                                <img
+                                  src={attachment.download_url}
+                                  alt={attachment.file_name}
+                                  className="max-h-64 w-full rounded-xl object-cover"
+                                />
+                                <div className={`mt-2 rounded-xl border px-3 py-2 text-sm ${isOwn ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`}>
+                                  <p className="truncate font-semibold">{attachment.file_name}</p>
+                                  <p className={`mt-1 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
+                                    Tap to view full image
+                                  </p>
+                                </div>
+                              </a>
+                            ) : (
+                              <div
+                                className={`mt-3 rounded-xl border px-3 py-2 text-sm ${isOwn ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isOwn ? 'bg-white/10 text-white' : 'bg-white text-slate-600'}`}>
+                                    <Download size={16} />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate font-semibold">{attachment.file_name}</p>
+                                    <p className={`mt-1 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
+                                      {attachment.content_type}
+                                    </p>
+                                  </div>
+                                </div>
+                                {attachment.download_url ? (
+                                  <a
+                                    href={attachment.download_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className={`mt-3 inline-flex items-center gap-2 text-xs font-semibold ${isOwn ? 'text-white' : 'text-[#3949AB]'}`}
+                                  >
+                                    <Download size={14} />
+                                    Download file
+                                  </a>
+                                ) : (
+                                  <p className={`mt-3 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
+                                    Download link unavailable
+                                  </p>
+                                )}
+                              </div>
+                            )
                           )}
                         </div>
                         <div className={`mt-2 flex items-center gap-2 px-1 text-[11px] ${isOwn ? 'justify-end' : 'justify-start'} text-slate-400`}>
