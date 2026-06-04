@@ -1,15 +1,12 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { 
+import {
   Star, 
   ClipboardList, 
   MessageCircle, 
   Clock,
   CalendarX,
   Info,
-  Download,
-  Eye,
-  Calendar,
   X,
 } from 'lucide-react';
 
@@ -42,7 +39,6 @@ function getTeacherInitials(name: string): string {
 export const OverviewModule = ({
   child,
   setActiveModule,
-  onOpenPlanner,
   onOpenMessageThread,
   notifications,
 }: OverviewModuleProps) => {
@@ -495,7 +491,7 @@ export const OverviewModule = ({
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         <Card className="flex flex-col justify-between h-full bg-white shadow-none">
           <div>
             <div className="flex items-center justify-between mb-4 border-b border-slate-50 pb-3">
@@ -597,68 +593,6 @@ export const OverviewModule = ({
           </div>
         </Card>
 
-        {/* Today's Schedule */}
-        <Card className="flex flex-col justify-between h-full bg-white shadow-none">
-          <div>
-            <div className="flex items-center justify-between mb-4 border-b border-slate-50 pb-3">
-              <div>
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">
-                  {t("overview.schedulesPlanners")}
-                </h3>
-                <p className="text-[11px] text-slate-400">{t("overview.accessCalendars")}</p>
-              </div>
-              <button
-                onClick={() => onOpenPlanner?.("weekly")}
-                className="text-xs font-bold text-[#3949ab] hover:underline cursor-pointer"
-              >
-                {t("overview.fullSchedule")} →
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4">
-              {/* Academic Yearly Calendar */}
-              <div className="bg-slate-50/40 rounded-xl border border-slate-100 p-4 flex flex-col justify-between hover:border-slate-200/80 hover:bg-slate-50/60 transition-all duration-200">
-                <div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-50/60 border border-emerald-100/40 flex items-center justify-center text-emerald-600 shrink-0">
-                      <Calendar size={18} className="stroke-[1.5]" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50/50 px-1.5 py-0.5 rounded-md mb-1">
-                        {t("overview.yearlyPlan")}
-                      </span>
-                      <h4 className="text-xs sm:text-sm font-semibold text-slate-800 tracking-tight leading-snug">
-                        {t("overview.academicCalendar")}
-                      </h4>
-                      <p className="text-[9px] sm:text-[10px] font-medium text-slate-400 mt-0.5 uppercase tracking-wider">
-                        {t("overview.masterLandmarks")}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bottom Buttons */}
-                <div className="border-t border-slate-100 pt-3.5 mt-4 grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => onOpenPlanner?.("academic")}
-                    className="flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-lg border border-slate-200 bg-white text-slate-650 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-800 transition-all text-[10px] sm:text-xs font-bold uppercase tracking-wider cursor-pointer active:scale-[0.98]"
-                  >
-                    <Eye size={12} className="stroke-[2]" />
-                    <span>{t("overview.openTimeline")}</span>
-                  </button>
-
-                  <button
-                    onClick={() => onOpenPlanner?.("academic")}
-                    className="flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg border border-transparent transition-all text-[10px] sm:text-xs font-bold uppercase tracking-wider cursor-pointer active:scale-[0.98] bg-emerald-50 text-emerald-700 hover:bg-emerald-100/80"
-                  >
-                    <Download size={12} className="stroke-[2]" />
-                    <span>{t("overview.pdf")}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Card>
       </div>
     </div>
 

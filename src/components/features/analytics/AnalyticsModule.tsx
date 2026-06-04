@@ -16,12 +16,10 @@ import {
   YAxis,
 } from 'recharts';
 import {
-  AlertTriangle,
   Minus,
   BookOpen,
   Calendar,
   CheckCircle2,
-  Target,
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
@@ -556,30 +554,6 @@ export const AnalyticsModule = ({ child }: AnalyticsModuleProps) => {
             </p>
           </Card>
 
-          <Card>
-            <SectionLabel>
-              <Target size={13} className="text-[#3949ab]" />
-              Recommended Actions
-            </SectionLabel>
-            <div className="mt-3 space-y-3">
-              <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${getRiskBandClasses(data.summary.riskBand)}`}>
-                <AlertTriangle size={12} />
-                {getRiskBandLabel(data.summary.riskBand)}
-              </div>
-
-              {data.recommendedActions.length > 0 ? (
-                <div className="space-y-2">
-                  {data.recommendedActions.map((action, index) => (
-                    <div key={`${index}-${action}`} className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5 text-sm text-slate-700">
-                      {action}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-500">No recommended actions from analytics.</p>
-              )}
-            </div>
-          </Card>
         </div>
       </div>
 
