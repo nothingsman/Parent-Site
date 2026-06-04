@@ -8,6 +8,7 @@ export const queryKeys = {
   todaysHomework: (childId: string) => ['homework', childId, 'today'] as const,
   attendance: (childId: string) => ['attendance', childId] as const,
   grades: (childId: string) => ['grades', childId] as const,
+  analytics: (childId: string) => ['analytics', childId] as const,
   messages: () => ['messages'] as const,
   messageThread: (threadId: string) => ['messages', threadId] as const,
   chatThreads: () => ['chat', 'threads'] as const,

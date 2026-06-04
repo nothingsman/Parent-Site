@@ -304,3 +304,61 @@ export interface StudentInsightDetail {
   created_at: string;
   delivered_at: string | null;
 }
+
+export interface StudentAnalyticsSummary {
+  overallGrade: number;
+  attendanceRate: number;
+  assignmentCompletionRate: number;
+  completedAssignments: number;
+  pendingAssignments: number;
+  missingAssignments: number;
+  classAverageOverall: number | null;
+  classRank: number | null;
+  classSize: number | null;
+  riskBand: 'low' | 'medium' | 'high' | 'unknown';
+  trendDirection: 'up' | 'down' | 'steady';
+  trendDelta: number;
+  headlineInsight: string | null;
+}
+
+export interface StudentAnalyticsSubjectPerformance {
+  subject: string;
+  studentScore: number;
+  classAverage: number;
+  targetScore: number | null;
+  teacherName: string | null;
+  color: string | null;
+}
+
+export interface StudentAnalyticsTrendPoint {
+  label: string;
+  score: number;
+  recordedAt: string | null;
+}
+
+export interface StudentAnalyticsTrendSeries {
+  subject: string;
+  color: string | null;
+  points: StudentAnalyticsTrendPoint[];
+}
+
+export interface StudentAnalyticsHeatmapCell {
+  date: string;
+  week: number;
+  weekday: number;
+  dayLabel: string;
+  submissionCount: number;
+}
+
+export interface StudentAnalyticsResponse {
+  studentId: string;
+  generatedAt: string;
+  analysisWindowLabel: string;
+  summary: StudentAnalyticsSummary;
+  subjectPerformance: StudentAnalyticsSubjectPerformance[];
+  gradeTrend: {
+    series: StudentAnalyticsTrendSeries[];
+  };
+  submissionHeatmap: StudentAnalyticsHeatmapCell[];
+  recommendedActions: string[];
+}

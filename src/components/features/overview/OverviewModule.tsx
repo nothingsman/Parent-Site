@@ -4,12 +4,11 @@ import {
   Star, 
   ClipboardList, 
   MessageCircle, 
-  Clock, 
-  CalendarX, 
-  Info, 
-  FileSpreadsheet, 
-  Download, 
-  Eye, 
+  Clock,
+  CalendarX,
+  Info,
+  Download,
+  Eye,
   Calendar,
   X,
 } from 'lucide-react';
@@ -616,49 +615,8 @@ export const OverviewModule = ({
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Left Column: Weekly Timetable Grid */}
-              <div className="bg-slate-50/40 rounded-xl border border-slate-100 p-4 flex flex-col justify-between hover:border-slate-200/80 hover:bg-slate-50/60 transition-all duration-200">
-                <div>
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-50/60 border border-indigo-100/40 flex items-center justify-center text-[#3949ab]/85 shrink-0">
-                      <FileSpreadsheet size={18} className="stroke-[1.5]" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50/50 px-1.5 py-0.5 rounded-md mb-1">
-                        {t("overview.timetable")}
-                      </span>
-                      <h4 className="text-xs sm:text-sm font-semibold text-slate-800 tracking-tight leading-snug">
-                        {t("overview.classScheduleRows")}
-                      </h4>
-                      <p className="text-[9px] sm:text-[10px] font-medium text-slate-400 mt-0.5 uppercase tracking-wider">
-                        {t("overview.gradeSec", { grade: String(child.grade), sec: String(child.section) })}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bottom Buttons */}
-                <div className="border-t border-slate-100 pt-3.5 mt-4 grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => onOpenPlanner?.("weekly")}
-                    className="flex items-center justify-center gap-1 py-1.5 px-2.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-800 transition-all text-[10px] sm:text-xs font-bold uppercase tracking-wider cursor-pointer active:scale-[0.98]"
-                  >
-                    <Eye size={12} className="stroke-[2]" />
-                    <span>{t("overview.viewGrid")}</span>
-                  </button>
-
-                  <button
-                    onClick={() => onOpenPlanner?.("weekly")}
-                    className="flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg border border-transparent transition-all text-[10px] sm:text-xs font-bold uppercase tracking-wider cursor-pointer active:scale-[0.98] bg-indigo-50 text-[#3949ab] hover:bg-indigo-100/80"
-                  >
-                    <Download size={12} className="stroke-[2]" />
-                    <span>{t("overview.pdf")}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Right Column: Academic Yearly Calendar */}
+            <div className="grid grid-cols-1 gap-4">
+              {/* Academic Yearly Calendar */}
               <div className="bg-slate-50/40 rounded-xl border border-slate-100 p-4 flex flex-col justify-between hover:border-slate-200/80 hover:bg-slate-50/60 transition-all duration-200">
                 <div>
                   <div className="flex items-start gap-3">
