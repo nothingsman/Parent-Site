@@ -208,6 +208,7 @@ describe('NotificationsModule', () => {
     expect(markNotificationReadMock).toHaveBeenCalledWith('notif-insight');
     expect(container?.textContent).toContain('Why this alert was generated');
     expect(container?.textContent).toContain('Recommended actions');
+    expect(container?.textContent).not.toContain('RULE_BASED');
     cleanup();
   });
 });
