@@ -14,10 +14,16 @@ import { confirmHomework, getAssignments, getTodaysHomework } from '../assignmen
 import { getAttendance, logAbsence } from '../attendanceService';
 import { getGrades } from '../gradeService';
 import { getMessages, sendMessage } from '../messageService';
-import { getNotifications } from '../notificationService';
+import {
+  getNotificationCounter,
+  getNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from '../notificationService';
 import { getSchedule } from '../scheduleService';
 import { getCurrentCalendarDocument } from '../calendarService';
 import { getMediaFile, uploadFileToMedia } from '../mediaService';
+import { getStudentInsight } from '../studentInsightService';
 import {
   login,
   requestOtp,
@@ -543,30 +549,198 @@ describe('messageService', () => {
 
 // ── notificationService ───────────────────────────────────────────────────────
 describe('notificationService', () => {
-  it('getNotifications calls GET /api/announcements and maps announcement items', async () => {
-    const mockItems = [{
-      id: 'N1',
-      subject: 'Test Notification',
-      message: 'Please review the latest update.',
-      is_urgent: true,
-      scheduled_at: '2026-05-30T10:00:00Z',
-    }];
+  it('getNotifications calls GET /api/notifications, maps payloads, and filters by child id', async () => {
+    const mockItems = {
+      count: 3,
+      next: null,
+      previous: null,
+      results: [
+        {
+          id: 'N1',
+          title: 'Test Notification',
+          message: 'Please review the latest update.',
+          data: {
+            category: 'assignment',
+            is_urgent: false,
+            student_id: 'STU-001',
+          },
+          read_at: null,
+          created_at: '2026-05-30T10:00:00Z',
+          notifiable: {
+            type: 'announcement',
+            id: 'N1',
+          },
+        },
+        {
+          id: 'N2',
+          title: 'Insight',
+          message: 'Needs support.',
+          data: {
+            risk_band: 'MEDIUM',
+            student_id: 'STU-001',
+            insight_id: 'insight-1',
+          },
+          read_at: '2026-05-30T10:02:00Z',
+          created_at: '2026-05-30T10:01:00Z',
+          notifiable: {
+            type: 'student_insight',
+            id: 'insight-1',
+          },
+        },
+        {
+          id: 'N3',
+          title: 'Other child',
+          message: 'Should be excluded.',
+          data: {
+            category: 'grade',
+            student_id: 'STU-999',
+          },
+          read_at: null,
+          created_at: '2026-05-30T10:05:00Z',
+          notifiable: {
+            type: 'announcement',
+            id: 'N3',
+          },
+        },
+      ],
+    };
     server.use(
-      http.get(`${BASE}/api/announcements/`, () =>
+      http.get(`${BASE}/api/notifications/`, () =>
         HttpResponse.json(mockItems)
       )
     );
     const result = await getNotifications('STU-001');
-    expect(result).toEqual([{
+    expect(result).toEqual([
+      {
+        id: 'N1',
+        title: 'Test Notification',
+        type: 'info',
+        category: 'assignment',
+        time: '2026-05-30T10:00:00Z',
+        read: false,
+        detail: 'Please review the latest update.',
+        icon: 'ClipboardList',
+        color: 'amber',
+        insightId: undefined,
+        studentId: 'STU-001',
+        targetRoute: undefined,
+        riskBand: undefined,
+      },
+      {
+        id: 'N2',
+        title: 'Insight',
+        type: 'urgent',
+        category: 'insight',
+        time: '2026-05-30T10:01:00Z',
+        read: true,
+        detail: 'Needs support.',
+        icon: 'Info',
+        color: 'amber',
+        insightId: 'insight-1',
+        studentId: 'STU-001',
+        targetRoute: undefined,
+        riskBand: 'MEDIUM',
+      },
+    ]);
+  });
+
+  it('markNotificationRead posts to mark-as-read and maps the response', async () => {
+    server.use(
+      http.post(`${BASE}/api/notifications/N1/mark-as-read/`, () =>
+        HttpResponse.json({
+          id: 'N1',
+          title: 'Message from teacher',
+          message: 'Please call back.',
+          data: {
+            category: 'message',
+            student_id: 'STU-001',
+          },
+          read_at: '2026-05-30T10:03:00Z',
+          created_at: '2026-05-30T10:00:00Z',
+          notifiable: {
+            type: 'chat_message',
+            id: 'chat-1',
+          },
+        })
+      )
+    );
+
+    const result = await markNotificationRead('N1');
+    expect(result).toMatchObject({
       id: 'N1',
-      title: 'Test Notification',
-      type: 'urgent',
-      category: 'announcement',
-      time: '2026-05-30T10:00:00Z',
-      read: false,
-      detail: 'Please review the latest update.',
-      color: 'red',
-    }]);
+      category: 'message',
+      read: true,
+      icon: 'MessageCircle',
+      color: 'green',
+    });
+  });
+
+  it('markAllNotificationsRead posts and returns updatedCount', async () => {
+    server.use(
+      http.post(`${BASE}/api/notifications/mark-all-read/`, () =>
+        HttpResponse.json({ updated_count: 4 })
+      )
+    );
+
+    await expect(markAllNotificationsRead()).resolves.toEqual({
+      updatedCount: 4,
+    });
+  });
+
+  it('getNotificationCounter calls GET /api/notifications/counter', async () => {
+    server.use(
+      http.get(`${BASE}/api/notifications/counter/`, () =>
+        HttpResponse.json({ unread_count: 7 })
+      )
+    );
+
+    await expect(getNotificationCounter()).resolves.toEqual({
+      unread_count: 7,
+    });
+  });
+});
+
+describe('studentInsightService', () => {
+  it('getStudentInsight fetches full insight details', async () => {
+    server.use(
+      http.get(`${BASE}/api/student-insights/insight-1/`, () =>
+        HttpResponse.json({
+          id: 'insight-1',
+          student: 'STU-001',
+          category: 'ACADEMICS',
+          category_display: 'Academics',
+          risk_band: 'LOW',
+          risk_band_display: 'Low',
+          title: 'Academic support update',
+          message: 'Recent scores suggest extra support may help.',
+          confidence_label: 'RULE_BASED',
+          recommended_actions: ['Review homework together'],
+          safety_status: 'APPROVED',
+          safety_status_display: 'Approved',
+          delivery_status: 'DELIVERED',
+          created_at: '2026-05-30T10:00:00Z',
+          delivered_at: '2026-05-30T10:01:00Z',
+        })
+      )
+    );
+
+    await expect(getStudentInsight('insight-1')).resolves.toEqual({
+      id: 'insight-1',
+      student: 'STU-001',
+      category: 'ACADEMICS',
+      category_display: 'Academics',
+      risk_band: 'LOW',
+      risk_band_display: 'Low',
+      title: 'Academic support update',
+      message: 'Recent scores suggest extra support may help.',
+      confidence_label: 'RULE_BASED',
+      recommended_actions: ['Review homework together'],
+      safety_status: 'APPROVED',
+      safety_status_display: 'Approved',
+      delivery_status: 'DELIVERED',
+      created_at: '2026-05-30T10:00:00Z',
+      delivered_at: '2026-05-30T10:01:00Z',
+    });
   });
 });
 

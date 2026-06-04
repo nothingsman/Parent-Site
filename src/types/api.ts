@@ -285,3 +285,21 @@ export interface CalendarDocumentResponse {
   created_at: string;
   updated_at: string;
 }
+
+export interface StudentInsightDetail {
+  id: string;
+  student: string;
+  category: string;
+  category_display: string;
+  risk_band: string;
+  risk_band_display: string;
+  title: string;
+  message: string;
+  confidence_label: string;
+  recommended_actions: string[];
+  safety_status: string;
+  safety_status_display: string;
+  delivery_status: string;
+  created_at: string;
+  delivered_at: string | null;
+}

@@ -6,6 +6,7 @@ import { useTranslation } from '@/lib/i18n';
 
 export interface MessagesModuleProps {
   child: Child;
+  externalThreadId?: string | null;
 }
 
 function formatTime(value: string | null): string {
@@ -24,8 +25,33 @@ function isImageAttachment(contentType: string | null | undefined): boolean {
   return (contentType ?? '').toLowerCase().startsWith('image/');
 }
 
+function formatDayLabel(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  }).format(date);
+}
+
+function isSameCalendarDay(left: string, right: string): boolean {
+  const leftDate = new Date(left);
+  const rightDate = new Date(right);
+  if (Number.isNaN(leftDate.getTime()) || Number.isNaN(rightDate.getTime())) {
+    return false;
+  }
+
+  return (
+    leftDate.getFullYear() === rightDate.getFullYear() &&
+    leftDate.getMonth() === rightDate.getMonth() &&
+    leftDate.getDate() === rightDate.getDate()
+  );
+}
+
 export const MessagesModule = ({
   child,
+  externalThreadId = null,
 }: MessagesModuleProps) => {
   const { t } = useTranslation();
   const {
@@ -46,7 +72,7 @@ export const MessagesModule = ({
     clearAttachment,
     attachmentMetaById,
     unreadTotal,
-  } = useMessageThreads(child);
+  } = useMessageThreads(child, { externalThreadId });
 
   const [mobileView, setMobileView] = useState<'list' | 'thread'>('list');
   const [composerText, setComposerText] = useState('');
@@ -243,8 +269,28 @@ export const MessagesModule = ({
                 )}
 
                 <div className="space-y-4">
-                  {activeMessages.map((message) => {
+                  {activeMessages.map((message, index) => {
                     const isOwn = message.sender_id === currentUserId;
+                    const previousMessage = index > 0 ? activeMessages[index - 1] : null;
+                    const nextMessage =
+                      index < activeMessages.length - 1 ? activeMessages[index + 1] : null;
+                    const isNewDay =
+                      !previousMessage ||
+                      !isSameCalendarDay(previousMessage.created_at, message.created_at);
+                    const previousIsOwn = previousMessage
+                      ? previousMessage.sender_id === currentUserId
+                      : null;
+                    const nextIsOwn = nextMessage
+                      ? nextMessage.sender_id === currentUserId
+                      : null;
+                    const showIncomingAvatar =
+                      !isOwn && (!previousMessage || previousIsOwn !== false);
+                    const startsCluster =
+                      !previousMessage || previousIsOwn !== isOwn || isNewDay;
+                    const endsCluster =
+                      !nextMessage ||
+                      nextIsOwn !== isOwn ||
+                      !isSameCalendarDay(nextMessage.created_at, message.created_at);
                     const attachment = message.attachment ? attachmentMetaById[message.attachment] : null;
                     const imageAttachment = attachment && isImageAttachment(attachment.content_type);
                     const seen = !isOwn
@@ -252,70 +298,90 @@ export const MessagesModule = ({
                       : message.read_by_ids.some((readerId) => readerId !== currentUserId);
 
                     return (
-                      <div key={message.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[85%] ${isOwn ? '' : 'min-w-0'}`}>
-                          <div className={`rounded-2xl px-4 py-3 shadow-sm ${isOwn ? 'bg-[#3949AB] text-white' : 'bg-white text-slate-900'}`}>
-                            {message.text && <p className="whitespace-pre-wrap text-sm">{message.text}</p>}
-                            {attachment && (
-                              imageAttachment && attachment.download_url ? (
-                                <a
-                                  href={attachment.download_url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="mt-3 block"
-                                >
-                                  <img
-                                    src={attachment.download_url}
-                                    alt={attachment.file_name}
-                                    className="max-h-64 w-full rounded-xl object-cover"
-                                  />
-                                  <div className={`mt-2 rounded-xl border px-3 py-2 text-sm ${isOwn ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`}>
-                                    <p className="truncate font-semibold">{attachment.file_name}</p>
-                                    <p className={`mt-1 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
-                                      Tap to view full image
-                                    </p>
-                                  </div>
-                                </a>
+                      <React.Fragment key={message.id}>
+                        {isNewDay && (
+                          <div className="flex items-center justify-center py-2">
+                            <div className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-slate-500 shadow-sm ring-1 ring-slate-200">
+                              {formatDayLabel(message.created_at)}
+                            </div>
+                          </div>
+                        )}
+                        <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${startsCluster ? 'mt-1' : 'mt-0.5'}`}>
+                          <div className={`flex max-w-[85%] items-end gap-2 ${isOwn ? 'flex-row-reverse' : 'min-w-0'}`}>
+                            {!isOwn && (
+                              showIncomingAvatar ? (
+                                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${activeContact.avatarBg}`}>
+                                  {activeContact.teacherInitials}
+                                </div>
                               ) : (
-                                <div
-                                  className={`mt-3 rounded-xl border px-3 py-2 text-sm ${isOwn ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`}
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isOwn ? 'bg-white/10 text-white' : 'bg-white text-slate-600'}`}>
-                                      <Download size={16} />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                      <p className="truncate font-semibold">{attachment.file_name}</p>
-                                      <p className={`mt-1 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
-                                        {attachment.content_type}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  {attachment.download_url ? (
+                                <div className="w-9 shrink-0" aria-hidden="true" />
+                              )
+                            )}
+                            <div className={`${isOwn ? '' : 'min-w-0'}`}>
+                              <div className={`rounded-2xl px-4 py-3 shadow-sm ${isOwn ? 'bg-[#3949AB] text-white' : 'bg-white text-slate-900'} ${!isOwn && startsCluster ? 'rounded-bl-md' : ''} ${!isOwn && !startsCluster ? 'rounded-l-md' : ''} ${!isOwn && !endsCluster ? 'rounded-bl-md' : ''} ${isOwn && startsCluster ? 'rounded-br-md' : ''} ${isOwn && !startsCluster ? 'rounded-r-md' : ''} ${isOwn && !endsCluster ? 'rounded-br-md' : ''}`}>
+                                {message.text && <p className="whitespace-pre-wrap text-sm">{message.text}</p>}
+                                {attachment && (
+                                  imageAttachment && attachment.download_url ? (
                                     <a
                                       href={attachment.download_url}
                                       target="_blank"
                                       rel="noreferrer"
-                                      className={`mt-3 inline-flex items-center gap-2 text-xs font-semibold ${isOwn ? 'text-white' : 'text-[#3949AB]'}`}
+                                      className="mt-3 block"
                                     >
-                                      <Download size={14} />
-                                      Download file
+                                      <img
+                                        src={attachment.download_url}
+                                        alt={attachment.file_name}
+                                        className="max-h-64 w-full rounded-xl object-cover"
+                                      />
+                                      <div className={`mt-2 rounded-xl border px-3 py-2 text-sm ${isOwn ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`}>
+                                        <p className="truncate font-semibold">{attachment.file_name}</p>
+                                        <p className={`mt-1 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
+                                          Tap to view full image
+                                        </p>
+                                      </div>
                                     </a>
                                   ) : (
-                                    <p className={`mt-3 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
-                                      Download link unavailable
-                                    </p>
-                                  )}
-                                </div>
-                              )
-                            )}
-                          </div>
-                          <div className={`mt-2 flex items-center gap-2 px-1 text-[11px] ${isOwn ? 'justify-end' : 'justify-start'} text-slate-400`}>
-                            <span>{formatTime(message.created_at)}</span>
-                            {seen && <span>{t("messages.seen")}</span>}
+                                    <div
+                                      className={`mt-3 rounded-xl border px-3 py-2 text-sm ${isOwn ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`}
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isOwn ? 'bg-white/10 text-white' : 'bg-white text-slate-600'}`}>
+                                          <Download size={16} />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                          <p className="truncate font-semibold">{attachment.file_name}</p>
+                                          <p className={`mt-1 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
+                                            {attachment.content_type}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      {attachment.download_url ? (
+                                        <a
+                                          href={attachment.download_url}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className={`mt-3 inline-flex items-center gap-2 text-xs font-semibold ${isOwn ? 'text-white' : 'text-[#3949AB]'}`}
+                                        >
+                                          <Download size={14} />
+                                          Download file
+                                        </a>
+                                      ) : (
+                                        <p className={`mt-3 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
+                                          Download link unavailable
+                                        </p>
+                                      )}
+                                    </div>
+                                  )
+                                )}
+                              </div>
+                              <div className={`mt-2 flex items-center gap-2 px-1 text-[11px] ${isOwn ? 'justify-end' : 'justify-start'} text-slate-400`}>
+                                <span>{formatTime(message.created_at)}</span>
+                                {seen && <span>{t("messages.seen")}</span>}
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      </React.Fragment>
                     );
                   })}
                   <div ref={messagesEndRef} />
