@@ -145,9 +145,10 @@ export interface ParentStudent {
   id: string;
   first_name: string;
   last_name: string;
-  section_name: string;
+  section_name: string | null;
   current_section: string | null;
-  grade_name: string;
+  grade_id: string | null;
+  grade_name: string | null;
   branch: string;
   branch_name: string;
 }

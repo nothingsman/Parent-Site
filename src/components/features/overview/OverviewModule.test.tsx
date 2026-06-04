@@ -11,12 +11,16 @@ import type { Child, NotificationEntry, TodaysHomeworkEntry } from '@/types';
 
 const useTodaysHomeworkMock = vi.fn();
 const useConfirmHomeworkMock = vi.fn();
+const useBehaviourLogMock = vi.fn();
+const useAnnouncementsMock = vi.fn();
 const useQueryMock = vi.fn();
 const mutateMock = vi.fn();
 
 vi.mock('@/hooks', () => ({
   useTodaysHomework: (...args: unknown[]) => useTodaysHomeworkMock(...args),
   useConfirmHomework: (...args: unknown[]) => useConfirmHomeworkMock(...args),
+  useBehaviourLog: (...args: unknown[]) => useBehaviourLogMock(...args),
+  useAnnouncements: (...args: unknown[]) => useAnnouncementsMock(...args),
 }));
 
 vi.mock('@tanstack/react-query', async () => {
@@ -33,6 +37,7 @@ const child: Child = {
   id: 'student-1',
   branchId: 'branch-1',
   branchName: 'Main Branch',
+  gradeId: 'grade-7',
   sectionId: 'section-1',
   name: 'Sara Bekele',
   initials: 'SB',
@@ -179,6 +184,8 @@ describe('OverviewModule', () => {
     mutateMock.mockReset();
     useTodaysHomeworkMock.mockReset();
     useConfirmHomeworkMock.mockReset();
+    useBehaviourLogMock.mockReset();
+    useAnnouncementsMock.mockReset();
     useQueryMock.mockReset();
     useConfirmHomeworkMock.mockReturnValue({
       mutate: mutateMock,
@@ -187,6 +194,57 @@ describe('OverviewModule', () => {
     });
     useTodaysHomeworkMock.mockReturnValue({
       data: homeworkRows,
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+    useBehaviourLogMock.mockReturnValue({
+      data: [
+        {
+          id: 'behaviour-2',
+          type: 'remark',
+          title: 'Improved participation',
+          description: 'Asked thoughtful questions in class.',
+          severity: 'LOW',
+          teacherName: 'Ms. Hana',
+          source: 'Teacher Remark',
+          occurredAt: '2026-06-02T08:00:00Z',
+          createdAt: '2026-06-02T08:10:00Z',
+        },
+        {
+          id: 'behaviour-1',
+          type: 'incident',
+          title: 'Classroom disruption',
+          description: 'Interrupted classmates during group work.',
+          severity: 'HIGH',
+          teacherName: 'Mr. Daniel',
+          source: 'Teacher Incident',
+          occurredAt: '2026-06-01T08:00:00Z',
+          createdAt: '2026-06-01T08:10:00Z',
+        },
+      ],
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+    useAnnouncementsMock.mockReturnValue({
+      data: [
+        {
+          id: 'announcement-1',
+          branchId: child.branchId,
+          subject: 'Parent meeting this Friday',
+          message: 'Please attend the branch hall at 3:00 PM.',
+          status: 'SENT',
+          isUrgent: false,
+          scheduledAt: null,
+          createdAt: '2026-06-01T09:00:00Z',
+          updatedAt: '2026-06-01T09:15:00Z',
+          targetRoles: 'PARENTS',
+          targetGrades: [child.gradeId!],
+          targetSections: [],
+          effectiveDate: '2026-06-01T09:15:00Z',
+        },
+      ],
       isLoading: false,
       isError: false,
       error: null,
@@ -229,6 +287,17 @@ describe('OverviewModule', () => {
     expect(container?.textContent).toContain('Ms. Hana');
     expect(container?.textContent).toContain('Mathematics');
     expect(container?.textContent).toContain('Please review the fractions worksheet.');
+    cleanup();
+  });
+
+  it('renders behaviour log and recent announcements previews', () => {
+    ({ container, root } = renderOverview());
+
+    expect(container?.textContent).toContain('Behaviour Log');
+    expect(container?.textContent).toContain('Improved participation');
+    expect(container?.textContent).toContain('Classroom disruption');
+    expect(container?.textContent).toContain('Recent Announcements');
+    expect(container?.textContent).toContain('Parent meeting this Friday');
     cleanup();
   });
 

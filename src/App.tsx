@@ -46,6 +46,7 @@ import { AttendanceModule } from "@/components/features/attendance";
 import { AssignmentsModule } from "@/components/features/assignments";
 import { MessagesModule } from "@/components/features/messages";
 import { NotificationsModule } from "@/components/features/notifications";
+import { AnnouncementsModule } from "@/components/features/announcements";
 import { ScheduleModule } from "@/components/features/schedule";
 import { AnalyticsModule } from "@/components/features/analytics";
 import { PlannerModule } from "@/components/features/planner";
@@ -206,6 +207,7 @@ export default function App() {
       case "Analytics": return <AnalyticsModule child={child} />;
       case "Messages": return <MessagesModule child={child} externalThreadId={selectedMessageThreadId} />;
       case "Notifications": return <NotificationsModule child={child} />;
+      case "Announcements": return <AnnouncementsModule child={child} />;
       case "Schedule": return <ScheduleModule child={child} />;
       default: return <OverviewModule child={child} notifications={notifications} setActiveModule={openModule} onOpenPlanner={openPlanner} onOpenMessageThread={openMessageThread} />;
     }
@@ -220,6 +222,7 @@ export default function App() {
     { icon: BarChart3, label: t("nav.analytics"), module: "Analytics" },
     { icon: MessageSquare, label: t("nav.messages"), module: "Messages", badge: badges.Messages },
     { icon: Bell, label: t("nav.notifications"), module: "Notifications", badge: badges.Notifications },
+    { icon: Bell, label: t("nav.announcements"), module: "Announcements" },
   ];
 
   const avatarColors = ["bg-[#3949ab]", "bg-[#128267]", "bg-[#c85a23]"];
@@ -268,7 +271,7 @@ export default function App() {
                 <span className="text-[10px] font-bold">{label}</span>
               </button>
             ))}
-            <button onClick={() => setShowMoreSheet(true)} className={`flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors relative min-h-[44px] border-none bg-transparent ${["Grades","Gradebook","Schedule","Notifications","Analytics"].includes(activeModule) ? "text-[#3949AB]" : "text-slate-400"}`}>
+            <button onClick={() => setShowMoreSheet(true)} className={`flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors relative min-h-[44px] border-none bg-transparent ${["Grades","Gradebook","Schedule","Notifications","Announcements","Analytics"].includes(activeModule) ? "text-[#3949AB]" : "text-slate-400"}`}>
               <div className="relative"><Menu size={20} />{badges.Notifications > 0 && <span className="absolute -top-1 -right-1 bg-rose-500 w-2 h-2 rounded-full ring-2 ring-white" />}</div>
               <span className="text-[10px] font-bold">{t("app.more")}</span>
             </button>
@@ -285,12 +288,13 @@ export default function App() {
                   <h3 className="text-xs font-black uppercase tracking-wider text-[#3949AB]">{t("app.moreApplications")}</h3>
                   <button onClick={() => setShowMoreSheet(false)} className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 border-none">✕</button>
                 </div>
-                <div className="grid grid-cols-5 gap-2 text-center">
+                <div className="grid grid-cols-3 gap-2 text-center">
                   {[
                     { icon: GraduationCap, label: t("nav.grades"), module: "Grades" },
                     { icon: BookOpen, label: t("nav.gradebook"), module: "Gradebook" },
                     { icon: Calendar, label: t("nav.schedule"), module: "Schedule" },
                     { icon: Bell, label: t("nav.notifications"), module: "Notifications", badge: badges.Notifications },
+                    { icon: Bell, label: t("nav.announcements"), module: "Announcements" },
                     { icon: BarChart3, label: t("nav.analytics"), module: "Analytics" },
                   ].map(({ icon: Icon, label, module, badge }) => (
                     <button key={module} onClick={() => { openModule(module); setShowMoreSheet(false); }} className="flex flex-col items-center gap-2 cursor-pointer group min-h-[60px] border-none bg-transparent">
