@@ -10,6 +10,36 @@ export interface HomeworkItem {
   statusVariant: "emerald" | "amber" | "red" | "blue" | "slate";
 }
 
+export interface MockBehaviourLogGroup {
+  childId: string;
+  entries: Array<{
+    id: string;
+    type: 'incident' | 'remark';
+    title: string;
+    description: string;
+    severity: 'LOW' | 'MEDIUM' | 'HIGH';
+    teacherName: string;
+    source: string;
+    occurredAt: string;
+    createdAt: string;
+  }>;
+}
+
+export interface MockAnnouncement {
+  id: string;
+  branch: string;
+  subject: string;
+  message: string;
+  scheduled_at: string | null;
+  is_urgent: boolean;
+  status: 'DRAFT' | 'SENT' | 'SCHEDULED';
+  target_roles: 'PARENTS' | 'TEACHERS' | 'BOTH';
+  targeted_grades: string[];
+  targeted_sections: string[];
+  created_at: string;
+  updated_at: string;
+}
+
 export const PARENT_NAME = 'Bekele';
 
 export const CHILDREN: Child[] = [
@@ -17,6 +47,7 @@ export const CHILDREN: Child[] = [
     id: "STU-00421",
     branchId: "branch-1",
     branchName: "Main Branch",
+    gradeId: "grade-7",
     sectionId: "section-1",
     name: "Sara Bekele",
     initials: "SB",
@@ -175,6 +206,7 @@ export const CHILDREN: Child[] = [
     id: "STU-00398",
     branchId: "branch-1",
     branchName: "Main Branch",
+    gradeId: "grade-4",
     sectionId: "section-2",
     name: "Yonas Bekele",
     initials: "YB",
@@ -285,6 +317,7 @@ export const CHILDREN: Child[] = [
     id: "STU-00502",
     branchId: "branch-1",
     branchName: "Main Branch",
+    gradeId: "grade-10",
     sectionId: "section-3",
     name: "Liya Bekele",
     initials: "LB",
@@ -424,6 +457,129 @@ export const CHILDREN: Child[] = [
         type: "Lecture",
       },
     ],
+  },
+];
+
+export const BEHAVIOUR_LOGS: MockBehaviourLogGroup[] = [
+  {
+    childId: "STU-00421",
+    entries: [
+      {
+        id: "BL-1",
+        type: "incident",
+        title: "Classroom disruption",
+        description: "Interrupted peers during a lab briefing.",
+        severity: "HIGH",
+        teacherName: "Ms. Bekele",
+        source: "Teacher Incident",
+        occurredAt: "2026-06-03T08:10:00Z",
+        createdAt: "2026-06-03T08:20:00Z",
+      },
+      {
+        id: "BL-2",
+        type: "remark",
+        title: "Improved participation",
+        description: "Asked thoughtful questions and stayed engaged.",
+        severity: "LOW",
+        teacherName: "Mr. Tesfaye",
+        source: "Teacher Remark",
+        occurredAt: "2026-06-04T09:00:00Z",
+        createdAt: "2026-06-04T09:10:00Z",
+      },
+    ],
+  },
+  {
+    childId: "STU-00398",
+    entries: [
+      {
+        id: "BL-3",
+        type: "remark",
+        title: "Helpful in class",
+        description: "Supported classmates during reading time.",
+        severity: "LOW",
+        teacherName: "Mr. Alemu",
+        source: "Teacher Remark",
+        occurredAt: "2026-06-02T10:00:00Z",
+        createdAt: "2026-06-02T10:05:00Z",
+      },
+    ],
+  },
+  {
+    childId: "STU-00502",
+    entries: [],
+  },
+];
+
+export const ANNOUNCEMENTS: MockAnnouncement[] = [
+  {
+    id: "ANN-1",
+    branch: "branch-1",
+    subject: "Parent meeting this Friday",
+    message: "All Grade 7 parents are invited to the branch hall at 3:00 PM.",
+    scheduled_at: null,
+    is_urgent: false,
+    status: "SENT",
+    target_roles: "PARENTS",
+    targeted_grades: ["grade-7"],
+    targeted_sections: [],
+    created_at: "2026-06-01T09:00:00Z",
+    updated_at: "2026-06-01T09:15:00Z",
+  },
+  {
+    id: "ANN-2",
+    branch: "branch-1",
+    subject: "Section A transport change",
+    message: "Pickup time for Section A will move to 4:15 PM on Thursday.",
+    scheduled_at: "2026-06-06T06:30:00Z",
+    is_urgent: true,
+    status: "SCHEDULED",
+    target_roles: "PARENTS",
+    targeted_grades: [],
+    targeted_sections: ["section-1"],
+    created_at: "2026-06-02T07:00:00Z",
+    updated_at: "2026-06-02T07:05:00Z",
+  },
+  {
+    id: "ANN-3",
+    branch: "branch-1",
+    subject: "Branch-wide family day",
+    message: "Families are welcome to attend the branch family day next week.",
+    scheduled_at: null,
+    is_urgent: false,
+    status: "SENT",
+    target_roles: "PARENTS",
+    targeted_grades: [],
+    targeted_sections: [],
+    created_at: "2026-05-30T11:00:00Z",
+    updated_at: "2026-05-31T08:00:00Z",
+  },
+  {
+    id: "ANN-4",
+    branch: "branch-1",
+    subject: "Grade 10 exam timetable",
+    message: "Grade 10 parents should review the updated exam timetable.",
+    scheduled_at: null,
+    is_urgent: true,
+    status: "SENT",
+    target_roles: "PARENTS",
+    targeted_grades: ["grade-10"],
+    targeted_sections: [],
+    created_at: "2026-06-03T12:00:00Z",
+    updated_at: "2026-06-03T12:00:00Z",
+  },
+  {
+    id: "ANN-5",
+    branch: "branch-1",
+    subject: "Draft should not show",
+    message: "This draft announcement must be excluded.",
+    scheduled_at: null,
+    is_urgent: false,
+    status: "DRAFT",
+    target_roles: "PARENTS",
+    targeted_grades: ["grade-7"],
+    targeted_sections: [],
+    created_at: "2026-06-04T12:00:00Z",
+    updated_at: "2026-06-04T12:00:00Z",
   },
 ];
 

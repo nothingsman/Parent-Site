@@ -20,6 +20,7 @@ export interface Child {
   id: string;
   branchId: string;
   branchName: string;
+  gradeId: string | null;
   sectionId: string | null;
   name: string;
   initials: string;

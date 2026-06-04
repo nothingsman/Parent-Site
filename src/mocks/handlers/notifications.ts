@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { CHILDREN } from '@/lib/mockData';
+import { ANNOUNCEMENTS, BEHAVIOUR_LOGS, CHILDREN } from '@/lib/mockData';
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000';
 
@@ -39,6 +39,15 @@ export const notificationsHandlers = [
       previous: null,
       results: items,
     });
+  }),
+
+  http.get(`${BASE}/api/parents/my-students/:id/behaviour-log/`, ({ params }) => {
+    const { id } = params as { id: string };
+    const group = BEHAVIOUR_LOGS.find((entry) => entry.childId === id);
+    if (!group) {
+      return HttpResponse.json({ detail: 'Not found.' }, { status: 404 });
+    }
+    return HttpResponse.json(group.entries);
   }),
 
   http.post(`${BASE}/api/notifications/mark-all-read/`, () => {
@@ -111,4 +120,6 @@ export const notificationsHandlers = [
       delivered_at: new Date().toISOString(),
     });
   }),
+
+  http.get(`${BASE}/api/announcements/`, () => HttpResponse.json(ANNOUNCEMENTS)),
 ];

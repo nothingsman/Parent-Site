@@ -13,6 +13,7 @@ export const childrenHandlers = [
       last_name: child.name.split(' ').slice(1).join(' '),
       section_name: child.section,
       current_section: child.sectionId,
+      grade_id: child.gradeId,
       grade_name: child.grade,
       branch: child.branchId,
       branch_name: child.branchName,

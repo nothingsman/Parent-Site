@@ -2,6 +2,8 @@ export * from './child';
 export * from './assignment';
 export * from './message';
 export * from './notification';
+export * from './announcement';
+export * from './behaviour';
 export * from './schedule';
 export * from './api';
 export * from './ui';
