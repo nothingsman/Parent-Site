@@ -88,10 +88,15 @@ const sendMessageMock = vi.fn();
 const clearAttachmentMock = vi.fn();
 
 const hookStateByChildId = new Map<string, ReturnType<typeof makeHookState>>();
-
-if (!HTMLElement.prototype.scrollIntoView) {
-  HTMLElement.prototype.scrollIntoView = vi.fn();
-}
+HTMLElement.prototype.scrollIntoView = vi.fn(function scrollIntoViewMock() {
+  const container = this.parentElement?.parentElement;
+  if (!container) return;
+  Object.defineProperty(container, 'scrollTop', {
+    configurable: true,
+    value: Math.max(0, container.scrollHeight - container.clientHeight),
+    writable: true,
+  });
+});
 
 function makeHookState(overrides: Partial<ReturnType<typeof baseHookState>> = {}) {
   return {
@@ -175,6 +180,15 @@ describe('MessagesModule', () => {
     sendMessageMock.mockReset();
     clearAttachmentMock.mockReset();
     hookStateByChildId.clear();
+    HTMLElement.prototype.scrollIntoView = vi.fn(function scrollIntoViewMock() {
+      const container = this.parentElement?.parentElement;
+      if (!container) return;
+      Object.defineProperty(container, 'scrollTop', {
+        configurable: true,
+        value: Math.max(0, container.scrollHeight - container.clientHeight),
+        writable: true,
+      });
+    });
   });
 
   function cleanup() {

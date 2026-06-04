@@ -129,7 +129,6 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   isError,
   errorMessage,
 }) => {
-  const [activePolicyTab, setActivePolicyTab] = useState<'ytd' | 'term2'>('ytd');
   const [calendarMonth, setCalendarMonth] = useState<Date>(
     getInitialMonth(attendance?.records ?? []),
   );
@@ -164,11 +163,6 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
   const currentExcused = summary?.excused ?? 0;
   const pendingReasons = summary?.pendingReasons ?? 0;
   const policyStanding = summary?.policyStanding ?? 'On Track';
-
-  const absenceLimit = activePolicyTab === 'ytd' ? 5 : 3;
-  const totalThreshold = activePolicyTab === 'ytd' ? 10 : 6;
-  const unexcusedAbsences = Math.min(summary?.unexcusedAbsences ?? 0, absenceLimit);
-  const totalAbsenceUsage = Math.min(currentAbsences, totalThreshold);
 
   const name = student.name || t("attendance_detail.student");
 
@@ -254,68 +248,6 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
       </div>
 
       <div className="attendance-two-col">
-        <div className="attendance-card">
-          <div className="attendance-card-header">
-            <div>
-              <div className="attendance-card-title">{t("attendance_detail.policyAnalytics")}</div>
-              <div className="attendance-card-subtitle">{t("attendance_detail.derivedAttendance")}</div>
-            </div>
-
-            <div className="attendance-tabs">
-              <button
-                onClick={() => setActivePolicyTab('ytd')}
-                className={`attendance-tab-btn ${activePolicyTab === 'ytd' ? 'active' : ''}`}
-              >
-                    {t("attendance_detail.ytd")}
-              </button>
-              <button
-                onClick={() => setActivePolicyTab('term2')}
-                className={`attendance-tab-btn ${activePolicyTab === 'term2' ? 'active' : ''}`}
-              >
-                {t("attendance_detail.term2")}
-              </button>
-            </div>
-          </div>
-
-          <div className="attendance-card-body">
-            <div className="attendance-progress-item">
-              <div className="attendance-progress-header">
-                <span className="attendance-progress-label">{t("attendance_detail.unexcusedLimit")}</span>
-                <span className={`attendance-progress-count ${unexcusedAbsences >= absenceLimit ? 'warn' : 'safe'}`}>
-                  {t("attendance_detail.used", { count: `${unexcusedAbsences} / ${absenceLimit}` })}
-                </span>
-              </div>
-              <div className="attendance-progress-track">
-                <div
-                  className="attendance-progress-fill orange"
-                  style={{ width: `${Math.min((unexcusedAbsences / absenceLimit) * 100, 100)}%` }}
-                />
-              </div>
-              <div className="attendance-progress-note">
-                {t("attendance_detail.remainingThreshold", { count: String(Math.max(absenceLimit - unexcusedAbsences, 0)) })}
-              </div>
-            </div>
-
-            <div className="attendance-progress-item mt-4">
-              <div className="attendance-progress-header">
-                <span className="attendance-progress-label">{t("attendance_detail.totalThreshold")}</span>
-                <span className={`attendance-progress-count ${totalAbsenceUsage >= totalThreshold ? 'warn' : 'safe'}`}>
-                  {t("attendance_detail.used", { count: `${totalAbsenceUsage} / ${totalThreshold}` })}
-                </span>
-              </div>
-              <div className="attendance-progress-track">
-                <div
-                  className="attendance-progress-fill blue"
-                  style={{ width: `${Math.min((totalAbsenceUsage / totalThreshold) * 100, 100)}%` }}
-                />
-              </div>
-              <div className="attendance-progress-note">
-                {t("attendance_detail.standingOk")}
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div className="attendance-card">
           <div className="attendance-card-header">
             <div>

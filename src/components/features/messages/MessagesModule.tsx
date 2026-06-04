@@ -57,17 +57,22 @@ export const MessagesModule = ({
   const activeThreadKeyRef = useRef<string | null>(null);
   const [showScrollDown, setShowScrollDown] = useState(false);
 
-  const scrollToBottom = useCallback((smooth = true) => {
-    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
-  }, []);
-
-  const handleScroll = useCallback(() => {
+  const syncScrollDownVisibility = useCallback(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
     const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
     const nextShowScrollDown = distanceFromBottom > 200;
     setShowScrollDown((current) => current === nextShowScrollDown ? current : nextShowScrollDown);
   }, []);
+
+  const scrollToBottom = useCallback((smooth = true) => {
+    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+    syncScrollDownVisibility();
+  }, [syncScrollDownVisibility]);
+
+  const handleScroll = useCallback(() => {
+    syncScrollDownVisibility();
+  }, [syncScrollDownVisibility]);
 
   React.useEffect(() => {
     if (!activeContact?.key) return;
@@ -82,6 +87,14 @@ export const MessagesModule = ({
       scrollToBottom(false);
     }
   }, [activeContact?.key, activeMessages.length, scrollToBottom, showScrollDown]);
+
+  React.useEffect(() => {
+    if (!activeContact?.key) return;
+    const frameId = window.requestAnimationFrame(() => {
+      syncScrollDownVisibility();
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [activeContact?.key, activeMessages.length, syncScrollDownVisibility]);
 
   React.useEffect(() => {
     setMobileView((current) => current === 'list' ? current : 'list');
@@ -173,7 +186,7 @@ export const MessagesModule = ({
         </div>
       </div>
 
-      <div className={`flex-1 flex-col ${mobileView === 'thread' ? 'flex' : 'hidden md:flex'}`}>
+      <div className={`min-h-0 flex-1 flex-col ${mobileView === 'thread' ? 'flex' : 'hidden md:flex'}`}>
         {activeContact ? (
           <>
             <div className="flex items-center justify-between border-b border-slate-100 bg-white p-5">
@@ -199,119 +212,121 @@ export const MessagesModule = ({
               </div>
             </div>
 
-            <div
-              ref={messagesContainerRef}
-              onScroll={handleScroll}
-              className="relative flex-1 overflow-y-auto bg-slate-50/70 p-5"
-            >
-              {!activeContact.existingThreadId && activeMessages.length === 0 && (
-                <div className="mb-4 rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-700">
-                  {t("messages.firstMessageInfo")}
-                </div>
-              )}
-
-              {messagesLoading && (
-                <div className="text-sm text-slate-400">{t("messages.loading")}</div>
-              )}
-
-              {!messagesLoading && activeMessages.length === 0 && (
-                <div className="flex h-full items-center justify-center">
-                  <div className="max-w-md text-center">
-                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-50 text-[#3949AB]">
-                      <User size={22} className="stroke-[2.5]" />
-                    </div>
-                    <h3 className="text-base font-bold text-slate-900">{t("messages.noMessagesYet")}</h3>
-                    <p className="mt-2 text-sm font-medium text-slate-500">
-                      {t("messages.startConversation", { name: activeContact.teacherName })}
-                    </p>
+            <div className="relative min-h-0 flex-1">
+              <div
+                ref={messagesContainerRef}
+                onScroll={handleScroll}
+                className="h-full min-h-0 overflow-y-auto bg-slate-50/70 p-5"
+              >
+                {!activeContact.existingThreadId && activeMessages.length === 0 && (
+                  <div className="mb-4 rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-700">
+                    {t("messages.firstMessageInfo")}
                   </div>
-                </div>
-              )}
+                )}
 
-              <div className="space-y-4">
-                {activeMessages.map((message) => {
-                  const isOwn = message.sender_id === currentUserId;
-                  const attachment = message.attachment ? attachmentMetaById[message.attachment] : null;
-                  const imageAttachment = attachment && isImageAttachment(attachment.content_type);
-                  const seen = !isOwn
-                    ? false
-                    : message.read_by_ids.some((readerId) => readerId !== currentUserId);
+                {messagesLoading && (
+                  <div className="text-sm text-slate-400">{t("messages.loading")}</div>
+                )}
 
-                  return (
-                    <div key={message.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[85%] ${isOwn ? '' : 'min-w-0'}`}>
-                        <div className={`rounded-2xl px-4 py-3 shadow-sm ${isOwn ? 'bg-[#3949AB] text-white' : 'bg-white text-slate-900'}`}>
-                          {message.text && <p className="whitespace-pre-wrap text-sm">{message.text}</p>}
-                          {attachment && (
-                            imageAttachment && attachment.download_url ? (
-                              <a
-                                href={attachment.download_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="mt-3 block"
-                              >
-                                <img
-                                  src={attachment.download_url}
-                                  alt={attachment.file_name}
-                                  className="max-h-64 w-full rounded-xl object-cover"
-                                />
-                                <div className={`mt-2 rounded-xl border px-3 py-2 text-sm ${isOwn ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`}>
-                                  <p className="truncate font-semibold">{attachment.file_name}</p>
-                                  <p className={`mt-1 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
-                                    Tap to view full image
-                                  </p>
-                                </div>
-                              </a>
-                            ) : (
-                              <div
-                                className={`mt-3 rounded-xl border px-3 py-2 text-sm ${isOwn ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isOwn ? 'bg-white/10 text-white' : 'bg-white text-slate-600'}`}>
-                                    <Download size={16} />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
+                {!messagesLoading && activeMessages.length === 0 && (
+                  <div className="flex h-full items-center justify-center">
+                    <div className="max-w-md text-center">
+                      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-50 text-[#3949AB]">
+                        <User size={22} className="stroke-[2.5]" />
+                      </div>
+                      <h3 className="text-base font-bold text-slate-900">{t("messages.noMessagesYet")}</h3>
+                      <p className="mt-2 text-sm font-medium text-slate-500">
+                        {t("messages.startConversation", { name: activeContact.teacherName })}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  {activeMessages.map((message) => {
+                    const isOwn = message.sender_id === currentUserId;
+                    const attachment = message.attachment ? attachmentMetaById[message.attachment] : null;
+                    const imageAttachment = attachment && isImageAttachment(attachment.content_type);
+                    const seen = !isOwn
+                      ? false
+                      : message.read_by_ids.some((readerId) => readerId !== currentUserId);
+
+                    return (
+                      <div key={message.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[85%] ${isOwn ? '' : 'min-w-0'}`}>
+                          <div className={`rounded-2xl px-4 py-3 shadow-sm ${isOwn ? 'bg-[#3949AB] text-white' : 'bg-white text-slate-900'}`}>
+                            {message.text && <p className="whitespace-pre-wrap text-sm">{message.text}</p>}
+                            {attachment && (
+                              imageAttachment && attachment.download_url ? (
+                                <a
+                                  href={attachment.download_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="mt-3 block"
+                                >
+                                  <img
+                                    src={attachment.download_url}
+                                    alt={attachment.file_name}
+                                    className="max-h-64 w-full rounded-xl object-cover"
+                                  />
+                                  <div className={`mt-2 rounded-xl border px-3 py-2 text-sm ${isOwn ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`}>
                                     <p className="truncate font-semibold">{attachment.file_name}</p>
                                     <p className={`mt-1 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
-                                      {attachment.content_type}
+                                      Tap to view full image
                                     </p>
                                   </div>
+                                </a>
+                              ) : (
+                                <div
+                                  className={`mt-3 rounded-xl border px-3 py-2 text-sm ${isOwn ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-800'}`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${isOwn ? 'bg-white/10 text-white' : 'bg-white text-slate-600'}`}>
+                                      <Download size={16} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="truncate font-semibold">{attachment.file_name}</p>
+                                      <p className={`mt-1 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
+                                        {attachment.content_type}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {attachment.download_url ? (
+                                    <a
+                                      href={attachment.download_url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className={`mt-3 inline-flex items-center gap-2 text-xs font-semibold ${isOwn ? 'text-white' : 'text-[#3949AB]'}`}
+                                    >
+                                      <Download size={14} />
+                                      Download file
+                                    </a>
+                                  ) : (
+                                    <p className={`mt-3 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
+                                      Download link unavailable
+                                    </p>
+                                  )}
                                 </div>
-                                {attachment.download_url ? (
-                                  <a
-                                    href={attachment.download_url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className={`mt-3 inline-flex items-center gap-2 text-xs font-semibold ${isOwn ? 'text-white' : 'text-[#3949AB]'}`}
-                                  >
-                                    <Download size={14} />
-                                    Download file
-                                  </a>
-                                ) : (
-                                  <p className={`mt-3 text-xs ${isOwn ? 'text-white/70' : 'text-slate-500'}`}>
-                                    Download link unavailable
-                                  </p>
-                                )}
-                              </div>
-                            )
-                          )}
-                        </div>
-                        <div className={`mt-2 flex items-center gap-2 px-1 text-[11px] ${isOwn ? 'justify-end' : 'justify-start'} text-slate-400`}>
-                          <span>{formatTime(message.created_at)}</span>
-                          {seen && <span>{t("messages.seen")}</span>}
+                              )
+                            )}
+                          </div>
+                          <div className={`mt-2 flex items-center gap-2 px-1 text-[11px] ${isOwn ? 'justify-end' : 'justify-start'} text-slate-400`}>
+                            <span>{formatTime(message.created_at)}</span>
+                            {seen && <span>{t("messages.seen")}</span>}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-                <div ref={messagesEndRef} />
+                    );
+                  })}
+                  <div ref={messagesEndRef} />
+                </div>
               </div>
 
               {showScrollDown && activeMessages.length > 0 && (
                 <button
                   type="button"
                   onClick={() => scrollToBottom(true)}
-                  className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 shadow-lg transition hover:bg-slate-50"
+                  className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 shadow-lg transition hover:bg-slate-50"
                 >
                   {t("messages.latestMessages")}
                 </button>
