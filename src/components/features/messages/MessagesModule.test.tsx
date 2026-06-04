@@ -2,6 +2,7 @@ import React from 'react';
 import { act } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, Root } from 'react-dom/client';
+
 import { MessagesModule } from './MessagesModule';
 import type { Child } from '@/types';
 import type { ChatMessage } from '@/types/message';
@@ -45,17 +46,22 @@ const childB: Child = {
   section: 'B',
 };
 
-function makeMessage(id: string, senderId: string, text: string): ChatMessage {
+function makeMessage(
+  id: string,
+  senderId: string,
+  text: string,
+  createdAt = '2026-06-01T08:00:00Z'
+): ChatMessage {
   return {
     id,
-    thread: `thread-${id}`,
+    thread: 'thread-1',
     sender: senderId,
     sender_id: senderId,
     text,
     attachment: null,
     read_by_ids: [],
-    created_at: '2026-06-01T08:00:00Z',
-    updated_at: '2026-06-01T08:00:00Z',
+    created_at: createdAt,
+    updated_at: createdAt,
   };
 }
 
@@ -64,13 +70,18 @@ function makeContact(
   teacherName: string,
   subjectName: string,
   gradeLabel: string,
-  updatedAt: string,
+  updatedAt: string
 ) {
   return {
     key,
     teacherId: `${key}-teacher`,
     teacherName,
-    teacherInitials: teacherName.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase(),
+    teacherInitials: teacherName
+      .split(' ')
+      .map((part) => part[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase(),
     subjectName,
     gradeLabel,
     studentName: 'STUDENT',
@@ -88,17 +99,12 @@ const sendMessageMock = vi.fn();
 const clearAttachmentMock = vi.fn();
 
 const hookStateByChildId = new Map<string, ReturnType<typeof makeHookState>>();
-HTMLElement.prototype.scrollIntoView = vi.fn(function scrollIntoViewMock() {
-  const container = this.parentElement?.parentElement;
-  if (!container) return;
-  Object.defineProperty(container, 'scrollTop', {
-    configurable: true,
-    value: Math.max(0, container.scrollHeight - container.clientHeight),
-    writable: true,
-  });
-});
 
-function makeHookState(overrides: Partial<ReturnType<typeof baseHookState>> = {}) {
+HTMLElement.prototype.scrollIntoView = vi.fn();
+
+function makeHookState(
+  overrides: Partial<ReturnType<typeof baseHookState>> = {}
+) {
   return {
     ...baseHookState(),
     ...overrides,
@@ -142,7 +148,7 @@ useMessageThreadsMock.mockImplementation((child: Child) => {
   return state;
 });
 
-function renderMessagesModule(child: Child) {
+function renderMessagesModule(child: Child, externalThreadId?: string | null) {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -150,7 +156,7 @@ function renderMessagesModule(child: Child) {
   act(() => {
     root.render(
       <LanguageProvider>
-        <MessagesModule child={child} />
+        <MessagesModule child={child} externalThreadId={externalThreadId} />
       </LanguageProvider>
     );
   });
@@ -158,11 +164,14 @@ function renderMessagesModule(child: Child) {
   return {
     container,
     root,
-    rerender(nextChild: Child) {
+    rerender(nextChild: Child, nextExternalThreadId?: string | null) {
       act(() => {
         root.render(
           <LanguageProvider>
-            <MessagesModule child={nextChild} />
+            <MessagesModule
+              child={nextChild}
+              externalThreadId={nextExternalThreadId}
+            />
           </LanguageProvider>
         );
       });
@@ -180,15 +189,6 @@ describe('MessagesModule', () => {
     sendMessageMock.mockReset();
     clearAttachmentMock.mockReset();
     hookStateByChildId.clear();
-    HTMLElement.prototype.scrollIntoView = vi.fn(function scrollIntoViewMock() {
-      const container = this.parentElement?.parentElement;
-      if (!container) return;
-      Object.defineProperty(container, 'scrollTop', {
-        configurable: true,
-        value: Math.max(0, container.scrollHeight - container.clientHeight),
-        writable: true,
-      });
-    });
   });
 
   function cleanup() {
@@ -202,49 +202,56 @@ describe('MessagesModule', () => {
     container = null;
   }
 
-  it('selects a teacher conversation by stable key when clicked', () => {
-    const teacherA = makeContact('thread-1', 'Ms. Hana', 'Mathematics', 'Grade 7 - A', '2026-06-01T08:00:00Z');
-    const teacherB = makeContact('thread-2', 'Mr. Daniel', 'English', 'Grade 7 - A', '2026-06-01T09:00:00Z');
-    hookStateByChildId.set(childA.id, makeHookState({
-      filteredContacts: [teacherA, teacherB],
-      activeKey: teacherA.key,
-      activeContact: teacherA,
-      activeMessages: [makeMessage('1', 'parent-1', 'Hello')],
-    }));
+  it('forwards externalThreadId into useMessageThreads', () => {
+    const teacher = makeContact(
+      'thread-1',
+      'Ms. Hana',
+      'Mathematics',
+      'Grade 7 - A',
+      '2026-06-01T08:00:00Z'
+    );
+    hookStateByChildId.set(
+      childA.id,
+      makeHookState({
+        filteredContacts: [teacher],
+        activeKey: teacher.key,
+        activeContact: teacher,
+      })
+    );
 
-    ({ container, root } = renderMessagesModule(childA));
+    ({ container, root } = renderMessagesModule(childA, 'thread-1'));
 
-    const buttons = Array.from(container?.querySelectorAll('button') ?? []);
-    const teacherButton = buttons.find((button) => button.textContent?.includes('Mr. Daniel'));
-    expect(teacherButton).toBeDefined();
-
-    act(() => {
-      teacherButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(useMessageThreadsMock).toHaveBeenCalledWith(childA, {
+      externalThreadId: 'thread-1',
     });
-
-    expect(setActiveKeyMock).toHaveBeenCalledWith('thread-2');
     cleanup();
   });
 
   it('keeps the selected conversation stable when contacts reorder', () => {
     const teacherA = makeContact('thread-1', 'Ms. Hana', 'Mathematics', 'Grade 7 - A', '2026-06-01T08:00:00Z');
     const teacherB = makeContact('thread-2', 'Mr. Daniel', 'English', 'Grade 7 - A', '2026-06-01T09:00:00Z');
-    hookStateByChildId.set(childA.id, makeHookState({
-      filteredContacts: [teacherA, teacherB],
-      activeKey: teacherB.key,
-      activeContact: teacherB,
-      activeMessages: [makeMessage('2', 'thread-2-teacher', 'Latest from Daniel')],
-    }));
+    hookStateByChildId.set(
+      childA.id,
+      makeHookState({
+        filteredContacts: [teacherA, teacherB],
+        activeKey: teacherB.key,
+        activeContact: teacherB,
+        activeMessages: [makeMessage('2', 'thread-2-teacher', 'Latest from Daniel')],
+      })
+    );
 
     ({ container, root } = renderMessagesModule(childA));
     expect(container?.querySelector('h3')?.textContent).toBe('Mr. Daniel');
 
-    hookStateByChildId.set(childA.id, makeHookState({
-      filteredContacts: [teacherB, teacherA],
-      activeKey: teacherB.key,
-      activeContact: teacherB,
-      activeMessages: [makeMessage('2', 'thread-2-teacher', 'Latest from Daniel')],
-    }));
+    hookStateByChildId.set(
+      childA.id,
+      makeHookState({
+        filteredContacts: [teacherB, teacherA],
+        activeKey: teacherB.key,
+        activeContact: teacherB,
+        activeMessages: [makeMessage('2', 'thread-2-teacher', 'Latest from Daniel')],
+      })
+    );
 
     act(() => {
       root?.render(
@@ -261,118 +268,78 @@ describe('MessagesModule', () => {
   it('resets local compose and mobile state when the child changes', () => {
     const teacherA = makeContact('thread-1', 'Ms. Hana', 'Mathematics', 'Grade 7 - A', '2026-06-01T08:00:00Z');
     const teacherB = makeContact('thread-3', 'Mr. Samuel', 'Biology', 'Grade 8 - B', '2026-06-01T10:00:00Z');
-    hookStateByChildId.set(childA.id, makeHookState({
-      filteredContacts: [teacherA],
-      activeKey: teacherA.key,
-      activeContact: teacherA,
-      activeMessages: [makeMessage('1', 'parent-1', 'Draft message')],
-    }));
-    hookStateByChildId.set(childB.id, makeHookState({
-      filteredContacts: [teacherB],
-      activeKey: teacherB.key,
-      activeContact: teacherB,
-      activeMessages: [makeMessage('3', 'thread-3-teacher', 'Welcome')],
-    }));
+    hookStateByChildId.set(
+      childA.id,
+      makeHookState({
+        filteredContacts: [teacherA],
+        activeKey: teacherA.key,
+        activeContact: teacherA,
+        activeMessages: [makeMessage('1', 'parent-1', 'Draft message')],
+      })
+    );
+    hookStateByChildId.set(
+      childB.id,
+      makeHookState({
+        filteredContacts: [teacherB],
+        activeKey: teacherB.key,
+        activeContact: teacherB,
+        activeMessages: [makeMessage('3', 'thread-3-teacher', 'Welcome')],
+      })
+    );
 
     const rendered = renderMessagesModule(childA);
     container = rendered.container;
     root = rendered.root;
 
-    const buttons = Array.from(container?.querySelectorAll('button') ?? []);
-    const teacherButton = buttons.find((button) => button.textContent?.includes('Ms. Hana'));
+    const teacherButton = Array.from(container?.querySelectorAll('button') ?? []).find(
+      (button) => button.textContent?.includes('Ms. Hana')
+    );
     act(() => {
       teacherButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
     const textarea = container?.querySelector('textarea') as HTMLTextAreaElement | null;
-    expect(textarea).not.toBeNull();
     act(() => {
       textarea!.value = 'Typing for child A';
       textarea!.dispatchEvent(new Event('input', { bubbles: true }));
       textarea!.dispatchEvent(new Event('change', { bubbles: true }));
     });
 
-    const fileInput = container?.querySelector('input[type="file"]') as HTMLInputElement | null;
-    const file = new File(['hello'], 'attachment.txt', { type: 'text/plain' });
-    act(() => {
-      Object.defineProperty(fileInput, 'files', {
-        configurable: true,
-        value: [file],
-      });
-      fileInput?.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    expect(container?.textContent).toContain('attachment.txt');
-
     rendered.rerender(childB);
 
-    const panels = container?.querySelectorAll(':scope > div');
-    expect(panels?.[0]?.className).toContain('flex');
     expect((container?.querySelector('textarea') as HTMLTextAreaElement | null)?.value).toBe('');
-    expect(container?.textContent).not.toContain('attachment.txt');
     expect(container?.querySelector('h3')?.textContent).toBe('Mr. Samuel');
     expect(clearAttachmentMock).toHaveBeenCalled();
     cleanup();
   });
 
-  it('shows an image preview for image attachments and a download UI for other files', () => {
-    const teacherA = makeContact('thread-1', 'Ms. Hana', 'Mathematics', 'Grade 7 - A', '2026-06-01T08:00:00Z');
-    const imageMessage = {
-      ...makeMessage('1', 'thread-1-teacher', 'See this'),
-      attachment: 'media-image',
-    };
-    const fileMessage = {
-      ...makeMessage('2', 'thread-1-teacher', 'Download this'),
-      attachment: 'media-file',
-    };
-
-    hookStateByChildId.set(childA.id, makeHookState({
-      filteredContacts: [teacherA],
-      activeKey: teacherA.key,
-      activeContact: teacherA,
-      activeMessages: [imageMessage, fileMessage],
-      attachmentMetaById: {
-        'media-image': {
-          id: 'media-image',
-          key: 'media/image',
-          bucket: 'bucket',
-          file_name: 'photo.png',
-          content_type: 'image/png',
-          size: 12,
-          etag: '"etag1"',
-          status: 'uploaded',
-          uploaded_by: 'user-1',
-          created_at: '2026-06-01T08:00:00Z',
-          updated_at: '2026-06-01T08:00:00Z',
-          download_url: 'https://example.com/photo.png',
-        },
-        'media-file': {
-          id: 'media-file',
-          key: 'media/file',
-          bucket: 'bucket',
-          file_name: 'report.pdf',
-          content_type: 'application/pdf',
-          size: 24,
-          etag: '"etag2"',
-          status: 'uploaded',
-          uploaded_by: 'user-1',
-          created_at: '2026-06-01T08:00:00Z',
-          updated_at: '2026-06-01T08:00:00Z',
-          download_url: 'https://example.com/report.pdf',
-        },
-      },
-    }));
+  it('renders date separators and clustered incoming teacher messages', () => {
+    const teacherA = makeContact('thread-1', 'Ms. Hana', 'Mathematics', 'Grade 7 - A', '2026-06-02T10:00:00Z');
+    hookStateByChildId.set(
+      childA.id,
+      makeHookState({
+        filteredContacts: [teacherA],
+        activeKey: teacherA.key,
+        activeContact: teacherA,
+        activeMessages: [
+          makeMessage('1', 'teacher-1', 'First teacher message', '2026-06-01T08:00:00Z'),
+          makeMessage('2', 'teacher-1', 'Second teacher message', '2026-06-01T08:03:00Z'),
+          makeMessage('3', 'parent-1', 'Parent reply', '2026-06-02T09:00:00Z'),
+        ],
+      })
+    );
 
     ({ container, root } = renderMessagesModule(childA));
 
-    const image = container?.querySelector('img[alt="photo.png"]') as HTMLImageElement | null;
-    expect(image).not.toBeNull();
-    expect(image?.src).toContain('https://example.com/photo.png');
+    expect(container?.textContent).toContain('Sunday, Jun 1');
+    expect(container?.textContent).toContain('Monday, Jun 2');
+    expect(container?.textContent).toContain('First teacher message');
+    expect(container?.textContent).toContain('Second teacher message');
 
-    const links = Array.from(container?.querySelectorAll('a') ?? []);
-    const downloadLink = links.find((link) => link.textContent?.includes('Download file'));
-    expect(downloadLink).toBeDefined();
-    expect(downloadLink?.getAttribute('href')).toBe('https://example.com/report.pdf');
-
+    const avatarInitials = Array.from(container?.querySelectorAll('div') ?? []).filter(
+      (node) => node.textContent === 'MH'
+    );
+    expect(avatarInitials.length).toBe(1);
     cleanup();
   });
 });

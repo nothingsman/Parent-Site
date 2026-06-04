@@ -111,7 +111,15 @@ export interface UseMessageThreadsReturn {
   unreadTotal: number;
 }
 
-export function useMessageThreads(child: Child): UseMessageThreadsReturn {
+export interface UseMessageThreadsOptions {
+  externalThreadId?: string | null;
+}
+
+export function useMessageThreads(
+  child: Child,
+  options: UseMessageThreadsOptions = {}
+): UseMessageThreadsReturn {
+  const { externalThreadId = null } = options;
   const queryClient = useQueryClient();
   const reconnectTimerRef = useRef<number | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
@@ -239,6 +247,19 @@ export function useMessageThreads(child: Child): UseMessageThreadsReturn {
       return contacts[0].key;
     });
   }, [contacts]);
+
+  useEffect(() => {
+    if (!externalThreadId) return;
+
+    const matchedContact = contacts.find(
+      (contact) =>
+        contact.key === externalThreadId ||
+        contact.existingThreadId === externalThreadId
+    );
+
+    if (!matchedContact || matchedContact.key === activeKey) return;
+    setActiveKey(matchedContact.key);
+  }, [activeKey, contacts, externalThreadId]);
 
   useEffect(() => {
     const attachmentIds = new Set<string>();

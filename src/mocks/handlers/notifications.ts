@@ -1,55 +1,114 @@
 import { http, HttpResponse } from 'msw';
 import { CHILDREN } from '@/lib/mockData';
-import type { ApiResponse, PaginatedResponse } from '@/types/api';
-import type { NotificationEntry } from '@/types/notification';
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000';
 
+function mapNotifiableType(category: string): string {
+  if (category === 'message') return 'chat_message';
+  if (category === 'insight') return 'student_insight';
+  return 'announcement';
+}
+
 export const notificationsHandlers = [
-  http.get(`${BASE}/api/announcements/`, () => {
+  http.get(`${BASE}/api/notifications/`, () => {
     const items = CHILDREN.flatMap((child) =>
       child.notifications.map((notification) => ({
         id: notification.id,
-        subject: notification.title,
+        title: notification.title,
         message: notification.detail,
-        is_urgent: notification.type === 'urgent',
-        scheduled_at: notification.time,
-      })),
+        data: {
+          category: notification.category,
+          is_urgent: notification.type === 'urgent',
+          student_id: child.id,
+          insight_id: notification.insightId,
+          target_route: notification.targetRoute,
+          risk_band: notification.riskBand,
+        },
+        read_at: notification.read ? notification.time : null,
+        created_at: notification.time,
+        notifiable: {
+          type: mapNotifiableType(notification.category),
+          id: notification.insightId ?? notification.id,
+        },
+      }))
     );
 
-    return HttpResponse.json(items);
+    return HttpResponse.json({
+      count: items.length,
+      next: null,
+      previous: null,
+      results: items,
+    });
   }),
 
-  // GET /api/children/:id/notifications
-  http.get(`${BASE}/api/children/:id/notifications`, ({ params }) => {
-    const { id } = params as { id: string };
-    const child = CHILDREN.find((c) => c.id === id);
+  http.post(`${BASE}/api/notifications/mark-all-read/`, () => {
+    const updatedCount = CHILDREN.flatMap((child) => child.notifications).filter(
+      (notification) => !notification.read
+    ).length;
+    return HttpResponse.json({ updated_count: updatedCount });
+  }),
 
-    if (!child) {
-      return HttpResponse.json(
-        {
-          success: false,
-          error: {
-            errorCode: 'NOT_FOUND',
-            message: `Child with id ${id} not found`,
-            details: { childId: id },
-          },
-        },
-        { status: 404 },
-      );
+  http.get(`${BASE}/api/notifications/counter/`, () => {
+    const unreadCount = CHILDREN.flatMap((child) => child.notifications).filter(
+      (notification) => !notification.read
+    ).length;
+    return HttpResponse.json({ unread_count: unreadCount });
+  }),
+
+  http.post(`${BASE}/api/notifications/:id/mark-as-read/`, ({ params }) => {
+    const { id } = params as { id: string };
+    const child = CHILDREN.find((entry) =>
+      entry.notifications.some((notification) => notification.id === id)
+    );
+    const notification = child?.notifications.find((entry) => entry.id === id);
+
+    if (!child || !notification) {
+      return HttpResponse.json({ detail: 'Not found.' }, { status: 404 });
     }
 
-    const items: NotificationEntry[] = child.notifications;
-    const body: ApiResponse<PaginatedResponse<NotificationEntry>> = {
-      success: true,
+    return HttpResponse.json({
+      id: notification.id,
+      title: notification.title,
+      message: notification.detail,
       data: {
-        items,
-        page: 1,
-        pageSize: 20,
-        total: items.length,
+        category: notification.category,
+        is_urgent: notification.type === 'urgent',
+        student_id: child.id,
+        insight_id: notification.insightId,
+        target_route: notification.targetRoute,
+        risk_band: notification.riskBand,
       },
-      meta: { timestamp: new Date().toISOString() },
-    };
-    return HttpResponse.json(body);
+      read_at: new Date().toISOString(),
+      created_at: notification.time,
+      notifiable: {
+        type: mapNotifiableType(notification.category),
+        id: notification.insightId ?? notification.id,
+      },
+    });
+  }),
+
+  http.get(`${BASE}/api/student-insights/:id/`, ({ params }) => {
+    const { id } = params as { id: string };
+
+    return HttpResponse.json({
+      id,
+      student: 'student-1',
+      category: 'ACADEMICS',
+      category_display: 'Academics',
+      risk_band: 'LOW',
+      risk_band_display: 'Low',
+      title: 'Academic support update',
+      message: 'Recent scores suggest extra support may help.',
+      confidence_label: 'RULE_BASED',
+      recommended_actions: [
+        'Review the latest schoolwork together.',
+        'Ask which topic felt difficult.',
+      ],
+      safety_status: 'APPROVED',
+      safety_status_display: 'Approved',
+      delivery_status: 'DELIVERED',
+      created_at: new Date().toISOString(),
+      delivered_at: new Date().toISOString(),
+    });
   }),
 ];

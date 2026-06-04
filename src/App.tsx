@@ -7,6 +7,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useChildren } from "@/hooks";
+import { useNotifications } from "@/hooks/useNotifications";
 import { useBranchIdentity } from "@/hooks/useBranchIdentity";
 import { getParentMe } from "@/services/parentService";
 import { listChatThreads } from "@/services/messageService";
@@ -81,6 +82,7 @@ export default function App() {
   const [showMoreSheet, setShowMoreSheet] = useState(false);
   const [isPlannerModalOpen, setIsPlannerModalOpen] = useState(false);
   const [plannerTab, setPlannerTab] = useState<"weekly" | "academic">("weekly");
+  const [selectedMessageThreadId, setSelectedMessageThreadId] = useState<string | null>(null);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -104,8 +106,13 @@ export default function App() {
     router.replace("/login");
   };
 
+  useEffect(() => {
+    setSelectedMessageThreadId(null);
+  }, [selectedChildIndex]);
+
   const child = children[selectedChildIndex];
   const { data: branchIdentity } = useBranchIdentity(child?.branchId);
+  const { data: notifications = [] } = useNotifications(child?.id ?? "");
 
   useEffect(() => {
     if (!branchIdentity?.logo) {
@@ -169,7 +176,7 @@ export default function App() {
     Messages: chatThreads
       .filter((thread) => thread.student === child.id)
       .reduce((sum, thread) => sum + thread.unread_count, 0),
-    Notifications: child.notifications.filter((n) => !n.read).length,
+    Notifications: notifications.filter((notification) => !notification.read).length,
     Assignments: child.assignments.filter((a) => a.status === "due").length,
   };
 
@@ -178,18 +185,29 @@ export default function App() {
     setIsPlannerModalOpen(true);
   };
 
+  const openModule = (module: string) => {
+    setSelectedMessageThreadId(null);
+    setActiveModule(module);
+  };
+
+  const openMessageThread = (threadId: string) => {
+    setSelectedMessageThreadId(threadId);
+    setActiveModule("Messages");
+    setShowMoreSheet(false);
+  };
+
   const renderModule = () => {
     switch (activeModule) {
-      case "Dashboard": return <OverviewModule child={child} setActiveModule={setActiveModule} onOpenPlanner={openPlanner} />;
-      case "Grades": return <GradesModule child={child} setActiveModule={setActiveModule} />;
+      case "Dashboard": return <OverviewModule child={child} notifications={notifications} setActiveModule={openModule} onOpenPlanner={openPlanner} onOpenMessageThread={openMessageThread} />;
+      case "Grades": return <GradesModule child={child} setActiveModule={openModule} />;
       case "Attendance": return <AttendanceModule child={child} />;
       case "Assignments": return <AssignmentsModule child={child} />;
       case "Gradebook": return <GradebookModule child={child} />;
       case "Analytics": return <AnalyticsModule child={child} />;
-      case "Messages": return <MessagesModule child={child} />;
+      case "Messages": return <MessagesModule child={child} externalThreadId={selectedMessageThreadId} />;
       case "Notifications": return <NotificationsModule child={child} />;
       case "Schedule": return <ScheduleModule child={child} />;
-      default: return <OverviewModule child={child} setActiveModule={setActiveModule} onOpenPlanner={openPlanner} />;
+      default: return <OverviewModule child={child} notifications={notifications} setActiveModule={openModule} onOpenPlanner={openPlanner} onOpenMessageThread={openMessageThread} />;
     }
   };
 
@@ -218,7 +236,7 @@ export default function App() {
               <span className="text-xs font-bold text-[#3949AB] truncate">{child.name}</span>
               <ChevronDown size={12} className="text-[#3949AB] shrink-0" />
             </button>
-            <button onClick={() => { setActiveModule("Notifications"); setShowMoreSheet(false); }} className="w-11 h-11 rounded-full hover:bg-slate-50 flex items-center justify-center text-slate-500 relative cursor-pointer border-none bg-transparent">
+            <button onClick={() => { openModule("Notifications"); setShowMoreSheet(false); }} className="w-11 h-11 rounded-full hover:bg-slate-50 flex items-center justify-center text-slate-500 relative cursor-pointer border-none bg-transparent">
               <Bell size={20} />
               {badges.Notifications > 0 && <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />}
             </button>
@@ -242,7 +260,7 @@ export default function App() {
               { icon: ClipboardList, label: t("nav.tasks"), module: "Assignments", badge: badges.Assignments },
               { icon: MessageSquare, label: t("nav.messages"), module: "Messages", badge: badges.Messages },
             ].map(({ icon: Icon, label, module, badge }) => (
-              <button key={module} onClick={() => { setActiveModule(module); setShowMoreSheet(false); }} className={`flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors min-h-[44px] border-none bg-transparent ${activeModule === module ? "text-[#3949AB]" : "text-slate-400"}`}>
+              <button key={module} onClick={() => { openModule(module); setShowMoreSheet(false); }} className={`flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors min-h-[44px] border-none bg-transparent ${activeModule === module ? "text-[#3949AB]" : "text-slate-400"}`}>
                 <div className="relative">
                   <Icon size={20} strokeWidth={activeModule === module ? 2.5 : 2} />
                   {badge !== undefined && badge > 0 && <span className="absolute -top-1.5 -right-2 bg-rose-500 text-white font-black text-[8px] h-4 min-w-4 px-1 rounded-full flex items-center justify-center ring-2 ring-white">{badge}</span>}
@@ -275,7 +293,7 @@ export default function App() {
                     { icon: Bell, label: t("nav.notifications"), module: "Notifications", badge: badges.Notifications },
                     { icon: BarChart3, label: t("nav.analytics"), module: "Analytics" },
                   ].map(({ icon: Icon, label, module, badge }) => (
-                    <button key={module} onClick={() => { setActiveModule(module); setShowMoreSheet(false); }} className="flex flex-col items-center gap-2 cursor-pointer group min-h-[60px] border-none bg-transparent">
+                    <button key={module} onClick={() => { openModule(module); setShowMoreSheet(false); }} className="flex flex-col items-center gap-2 cursor-pointer group min-h-[60px] border-none bg-transparent">
                       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all relative ${activeModule === module ? "bg-[#3949AB] text-white shadow-lg" : "bg-slate-50 text-slate-600 group-hover:bg-slate-100"}`}>
                         <Icon size={22} />
                         {badge !== undefined && badge > 0 && <span className="absolute top-0 right-0 bg-rose-500 text-white font-black text-[8px] h-4 min-w-4 px-1 rounded-full flex items-center justify-center ring-2 ring-white">{badge}</span>}
@@ -366,7 +384,7 @@ export default function App() {
 
           <nav className={`flex-1 flex flex-col gap-1 overflow-y-auto ${isSidebarCollapsed ? "px-2 py-4 items-center" : "px-4 py-4"}`}>
             {navItems.map(({ icon, label, module, badge }) => (
-              <SidebarItem key={module} icon={icon} label={label} isActive={activeModule === module} count={badge} isCollapsed={isSidebarCollapsed} onClick={() => setActiveModule(module)} />
+              <SidebarItem key={module} icon={icon} label={label} isActive={activeModule === module} count={badge} isCollapsed={isSidebarCollapsed} onClick={() => openModule(module)} />
             ))}
           </nav>
 

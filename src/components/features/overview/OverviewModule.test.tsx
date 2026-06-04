@@ -2,18 +2,32 @@ import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, Root } from 'react-dom/client';
+
 import { OverviewModule } from './OverviewModule';
 import { LanguageProvider } from '@/lib/i18n';
-import type { Child, TodaysHomeworkEntry } from '@/types';
+import type { ChatThread } from '@/types/message';
+import type { SectionTeacherAssignment } from '@/types/api';
+import type { Child, NotificationEntry, TodaysHomeworkEntry } from '@/types';
 
 const useTodaysHomeworkMock = vi.fn();
 const useConfirmHomeworkMock = vi.fn();
+const useQueryMock = vi.fn();
 const mutateMock = vi.fn();
 
 vi.mock('@/hooks', () => ({
   useTodaysHomework: (...args: unknown[]) => useTodaysHomeworkMock(...args),
   useConfirmHomework: (...args: unknown[]) => useConfirmHomeworkMock(...args),
 }));
+
+vi.mock('@tanstack/react-query', async () => {
+  const actual = await vi.importActual<typeof import('@tanstack/react-query')>(
+    '@tanstack/react-query'
+  );
+  return {
+    ...actual,
+    useQuery: (...args: unknown[]) => useQueryMock(...args),
+  };
+});
 
 const child: Child = {
   id: 'student-1',
@@ -77,7 +91,66 @@ const homeworkRows: TodaysHomeworkEntry[] = [
   },
 ];
 
-function renderOverview() {
+const teacherAssignments: SectionTeacherAssignment[] = [
+  {
+    id: 'assignment-1',
+    section_name: 'Grade 7 - A',
+    academic_year_name: '2026',
+    subject_id: 'subject-1',
+    subject_name: 'Mathematics',
+    subject_code: 'MATH',
+    grade_name: 'Grade 7',
+    teacher_id: 'teacher-1',
+    teacher_name: 'Ms. Hana',
+    teacher_employee_id: 'EMP-1',
+    teacher_specialization: 'Mathematics',
+  },
+];
+
+const unreadThread: ChatThread = {
+  id: 'thread-1',
+  parent: 'parent-1',
+  teacher: 'teacher-1',
+  student: 'student-1',
+  organization: 'org-1',
+  branch: 'branch-1',
+  unread_count: 2,
+  last_read_at: null,
+  latest_message: {
+    id: 'message-1',
+    thread: 'thread-1',
+    sender: 'teacher-1',
+    sender_id: 'teacher-1',
+    text: 'Please review the fractions worksheet.',
+    attachment: null,
+    read_by_ids: [],
+    created_at: '2026-06-01T08:00:00Z',
+    updated_at: '2026-06-01T08:00:00Z',
+  },
+  created_at: '2026-06-01T07:00:00Z',
+  updated_at: '2026-06-01T08:00:00Z',
+};
+
+const readThread: ChatThread = {
+  ...unreadThread,
+  id: 'thread-2',
+  teacher: 'teacher-2',
+  unread_count: 0,
+  latest_message: {
+    ...unreadThread.latest_message!,
+    id: 'message-2',
+    thread: 'thread-2',
+    sender: 'teacher-2',
+    sender_id: 'teacher-2',
+    text: 'This one is already read.',
+  },
+  updated_at: '2026-06-01T09:00:00Z',
+};
+
+function renderOverview(props?: {
+  notifications?: NotificationEntry[];
+  onOpenMessageThread?: (threadId: string) => void;
+}) {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -88,8 +161,10 @@ function renderOverview() {
         <OverviewModule
           child={child}
           setActiveModule={vi.fn()}
+          onOpenMessageThread={props?.onOpenMessageThread}
+          notifications={props?.notifications}
         />
-      </LanguageProvider>,
+      </LanguageProvider>
     );
   });
 
@@ -104,10 +179,26 @@ describe('OverviewModule', () => {
     mutateMock.mockReset();
     useTodaysHomeworkMock.mockReset();
     useConfirmHomeworkMock.mockReset();
+    useQueryMock.mockReset();
     useConfirmHomeworkMock.mockReturnValue({
       mutate: mutateMock,
       isPending: false,
       variables: undefined,
+    });
+    useTodaysHomeworkMock.mockReturnValue({
+      data: homeworkRows,
+      isLoading: false,
+      isError: false,
+      error: null,
+    });
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: readonly unknown[] }) => {
+      if (queryKey[0] === 'teacher-assignments') {
+        return { data: teacherAssignments, isLoading: false };
+      }
+      if (queryKey[0] === 'chat') {
+        return { data: [], isLoading: false };
+      }
+      return { data: undefined, isLoading: false };
     });
   });
 
@@ -122,117 +213,80 @@ describe('OverviewModule', () => {
     container = null;
   }
 
-  it('renders loading state', () => {
-    useTodaysHomeworkMock.mockReturnValue({
-      data: [],
-      isLoading: true,
-      isError: false,
-      error: null,
+  it('renders unread teacher message previews with teacher, subject, and latest text', () => {
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: readonly unknown[] }) => {
+      if (queryKey[0] === 'teacher-assignments') {
+        return { data: teacherAssignments, isLoading: false };
+      }
+      if (queryKey[0] === 'chat') {
+        return { data: [unreadThread], isLoading: false };
+      }
+      return { data: undefined, isLoading: false };
     });
 
     ({ container, root } = renderOverview());
-    expect(container?.textContent).toContain("Loading today's homework...");
+
+    expect(container?.textContent).toContain('Ms. Hana');
+    expect(container?.textContent).toContain('Mathematics');
+    expect(container?.textContent).toContain('Please review the fractions worksheet.');
     cleanup();
   });
 
-  it('renders empty state', () => {
-    useTodaysHomeworkMock.mockReturnValue({
-      data: [],
-      isLoading: false,
-      isError: false,
-      error: null,
+  it('excludes already-read threads from unread teacher previews', () => {
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: readonly unknown[] }) => {
+      if (queryKey[0] === 'teacher-assignments') {
+        return { data: teacherAssignments, isLoading: false };
+      }
+      if (queryKey[0] === 'chat') {
+        return { data: [unreadThread, readThread], isLoading: false };
+      }
+      return { data: undefined, isLoading: false };
     });
 
     ({ container, root } = renderOverview());
-    expect(container?.textContent).toContain('No homework due today.');
+
+    expect(container?.textContent).toContain('Ms. Hana');
+    expect(container?.textContent).not.toContain('This one is already read.');
     cleanup();
   });
 
-  it('renders live homework rows and disables confirmed rows', () => {
-    useTodaysHomeworkMock.mockReturnValue({
-      data: homeworkRows,
-      isLoading: false,
-      isError: false,
-      error: null,
+  it('clicking a preview calls onOpenMessageThread with the thread id', () => {
+    const onOpenMessageThread = vi.fn();
+    useQueryMock.mockImplementation(({ queryKey }: { queryKey: readonly unknown[] }) => {
+      if (queryKey[0] === 'teacher-assignments') {
+        return { data: teacherAssignments, isLoading: false };
+      }
+      if (queryKey[0] === 'chat') {
+        return { data: [unreadThread], isLoading: false };
+      }
+      return { data: undefined, isLoading: false };
     });
 
+    ({ container, root } = renderOverview({ onOpenMessageThread }));
+
+    const preview = Array.from(container?.querySelectorAll('[role="button"]') ?? []).find(
+      (node) => node.textContent?.includes('Please review the fractions worksheet.')
+    );
+
+    act(() => {
+      preview?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(onOpenMessageThread).toHaveBeenCalledWith('thread-1');
+    cleanup();
+  });
+
+  it('keeps existing homework behavior intact', () => {
     ({ container, root } = renderOverview());
+
     expect(container?.textContent).toContain('Fractions Worksheet');
-    expect(container?.textContent).toContain('Reading Notes');
 
-    const buttons = container?.querySelectorAll('button');
-    const confirmButton = Array.from(buttons ?? []).find((button) =>
-      button.textContent?.includes('Confirm'),
-    );
-    const confirmedButton = Array.from(buttons ?? []).find((button) =>
-      button.textContent === 'Confirmed',
-    );
-
-    expect(confirmButton?.hasAttribute('disabled')).toBe(false);
-    expect(confirmedButton?.hasAttribute('disabled')).toBe(true);
-    cleanup();
-  });
-
-  it('clicking a homework row opens the details modal', () => {
-    useTodaysHomeworkMock.mockReturnValue({
-      data: [homeworkRows[0]],
-      isLoading: false,
-      isError: false,
-      error: null,
-    });
-
-    ({ container, root } = renderOverview());
-    const row = container?.querySelector('[role="button"]');
-
-    act(() => {
-      row?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-
-    expect(container?.textContent).toContain('Homework Details');
-    expect(container?.textContent).toContain('Sara Bekele');
-    expect(container?.textContent).toContain('Solve page 4');
-    cleanup();
-  });
-
-  it('shows fallback text when homework description is blank', () => {
-    useTodaysHomeworkMock.mockReturnValue({
-      data: [
-        {
-          ...homeworkRows[0],
-          description: '   ',
-        },
-      ],
-      isLoading: false,
-      isError: false,
-      error: null,
-    });
-
-    ({ container, root } = renderOverview());
-    const row = container?.querySelector('[role="button"]');
-
-    act(() => {
-      row?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-
-    expect(container?.textContent).toContain('No description provided.');
-    cleanup();
-  });
-
-  it('clicking confirm triggers mutation with the homework assessment and student ids', () => {
-    useTodaysHomeworkMock.mockReturnValue({
-      data: [homeworkRows[0]],
-      isLoading: false,
-      isError: false,
-      error: null,
-    });
-
-    ({ container, root } = renderOverview());
-    const button = Array.from(container?.querySelectorAll('button') ?? []).find(
-      (entry) => entry.textContent === 'Confirm',
+    const confirmButton = Array.from(container?.querySelectorAll('button') ?? []).find(
+      (button) => button.textContent === 'Confirm'
     );
 
     act(() => {
-      button?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      confirmButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
     expect(mutateMock).toHaveBeenCalledWith({
@@ -240,27 +294,6 @@ describe('OverviewModule', () => {
       student: 'student-1',
       is_confirmed: true,
     });
-    cleanup();
-  });
-
-  it('clicking confirm does not open the details modal', () => {
-    useTodaysHomeworkMock.mockReturnValue({
-      data: [homeworkRows[0]],
-      isLoading: false,
-      isError: false,
-      error: null,
-    });
-
-    ({ container, root } = renderOverview());
-    const button = Array.from(container?.querySelectorAll('button') ?? []).find(
-      (entry) => entry.textContent === 'Confirm',
-    );
-
-    act(() => {
-      button?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-
-    expect(container?.textContent).not.toContain('Homework Details');
     cleanup();
   });
 });

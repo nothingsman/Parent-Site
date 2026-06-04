@@ -1,4 +1,5 @@
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { 
   Star, 
   ClipboardList, 
@@ -15,7 +16,10 @@ import {
 
 import { Card, Badge, SectionLabel } from '@/components/ui';
 import { useConfirmHomework, useTodaysHomework } from '@/hooks';
-import { Child, TodaysHomeworkEntry } from '@/types';
+import { queryKeys } from '@/lib/queryKeys';
+import { listChatThreads } from '@/services/messageService';
+import { getSectionTeacherAssignments } from '@/services/teacherService';
+import { Child, NotificationEntry, TodaysHomeworkEntry } from '@/types';
 import { getGradeColor, getGradeLetter } from '@/lib/utils';
 import { useTranslation } from '@/lib/i18n';
 
@@ -23,16 +27,30 @@ export interface OverviewModuleProps {
   child: Child;
   setActiveModule: (m: string) => void;
   onOpenPlanner?: (tab: "weekly" | "academic") => void;
+  onOpenMessageThread?: (threadId: string) => void;
+  notifications?: NotificationEntry[];
+}
+
+function getTeacherInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('') || 'TE';
 }
 
 export const OverviewModule = ({
   child,
   setActiveModule,
   onOpenPlanner,
+  onOpenMessageThread,
+  notifications,
 }: OverviewModuleProps) => {
   const [selectedHomework, setSelectedHomework] =
     React.useState<TodaysHomeworkEntry | null>(null);
   const { t } = useTranslation();
+  const recentNotifications = notifications ?? child.notifications;
 
   // Compute absences count
   const absentCount = child.attendance_log.filter(
@@ -46,6 +64,18 @@ export const OverviewModule = ({
     error: homeworkError,
   } = useTodaysHomework(child.id);
   const confirmHomeworkMutation = useConfirmHomework(child.id);
+  const { data: teacherAssignments = [] } = useQuery({
+    queryKey: ['teacher-assignments', 'section', child.sectionId],
+    queryFn: () => getSectionTeacherAssignments(child.sectionId as string),
+    enabled: Boolean(child.sectionId),
+  });
+  const {
+    data: chatThreads = [],
+    isLoading: isThreadsLoading,
+  } = useQuery({
+    queryKey: queryKeys.chatThreads(),
+    queryFn: listChatThreads,
+  });
   const todayLabel = new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
     month: 'long',
@@ -80,6 +110,18 @@ export const OverviewModule = ({
       day: 'numeric',
       year: 'numeric',
     }).format(new Date(value));
+
+  const formatMessageTime = (value: string | null) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(date);
+  };
 
   const getHomeworkBadgeVariant = (entry: {
     confirmed: boolean;
@@ -149,6 +191,36 @@ export const OverviewModule = ({
   const selectedHomeworkIsPending = selectedHomework
     ? isConfirmingHomework(selectedHomework.id, selectedHomework.studentId)
     : false;
+  const unreadTeacherThreads = React.useMemo(() => {
+    const assignmentByTeacherId = new Map(
+      teacherAssignments.map((assignment) => [assignment.teacher_id, assignment] as const)
+    );
+
+    return chatThreads
+      .filter((thread) => thread.student === child.id && thread.unread_count > 0)
+      .sort(
+        (left, right) =>
+          new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime()
+      )
+      .slice(0, 3)
+      .map((thread) => {
+        const assignment = assignmentByTeacherId.get(thread.teacher);
+        const latestMessage = thread.latest_message;
+        const teacherName = assignment?.teacher_name ?? 'Teacher';
+        const subjectName = assignment?.subject_name ?? 'Conversation';
+
+        return {
+          id: thread.id,
+          teacherName,
+          teacherInitials: getTeacherInitials(teacherName),
+          subjectName,
+          updatedAt: thread.updated_at,
+          preview:
+            latestMessage?.text?.trim() ||
+            (latestMessage?.attachment ? 'Attachment shared' : 'No messages yet'),
+        };
+      });
+  }, [chatThreads, child.id, teacherAssignments]);
 
   return (
     <>
@@ -343,10 +415,19 @@ export const OverviewModule = ({
               </button>
             </div>
             <div className="divide-y divide-slate-50">
-              {child.messages.slice(0, 3).map((msg) => (
+              {unreadTeacherThreads.map((msg) => (
                 <div
                   key={msg.id}
                   className="py-3 flex items-center gap-3 cursor-pointer hover:bg-slate-50 rounded-lg px-2 -mx-2 transition-colors"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onOpenMessageThread?.(msg.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onOpenMessageThread?.(msg.id);
+                    }
+                  }}
                 >
                   <div className="w-8 h-8 rounded-full bg-blue-100 text-[#3949ab] flex items-center justify-center text-xs font-bold shrink-0">
                     {msg.teacherInitials}
@@ -356,20 +437,23 @@ export const OverviewModule = ({
                       <h4 className="text-sm font-medium text-slate-800">
                         {msg.teacherName}
                       </h4>
-                      <span className="text-xs text-slate-400">{msg.time}</span>
+                      <span className="text-xs text-slate-400">{formatMessageTime(msg.updatedAt)}</span>
                     </div>
                     <p className="text-xs text-slate-500 font-medium truncate">
-                      {msg.subject}
+                      {msg.subjectName}
                     </p>
                     <p className="text-xs text-slate-400 truncate">
                       {msg.preview}
                     </p>
                   </div>
-                  {msg.unread && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />
-                  )}
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />
                 </div>
               ))}
+              {!isThreadsLoading && unreadTeacherThreads.length === 0 && (
+                <div className="py-6 text-sm font-medium text-slate-500">
+                  No unread teacher messages right now.
+                </div>
+              )}
             </div>
           </div>
         </Card>
@@ -388,7 +472,7 @@ export const OverviewModule = ({
             </button>
           </div>
           <div className="space-y-3">
-            {child.notifications.slice(0, 4).map((notif) => {
+            {recentNotifications.slice(0, 4).map((notif) => {
               const IconComp = getIconComponent(notif.icon);
               const colorClasses = getColorClasses(notif.color);
 
