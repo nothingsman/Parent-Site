@@ -224,9 +224,6 @@ export const NotificationsModule = ({ child }: NotificationsModuleProps) => {
                     <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
                       {selectedInsight?.risk_band_display}
                     </span>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">
-                      {selectedInsight?.confidence_label}
-                    </span>
                   </div>
                   <div className="space-y-2">
                     <h4 className="text-sm font-bold text-slate-900">
