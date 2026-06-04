@@ -20,6 +20,7 @@
     "analytics": "Analytics",
     "messages": "Messages",
     "notifications": "Notifications",
+    "announcements": "Announcements",
     "schedule": "Schedule",
     "tasks": "Tasks",
     "home": "Home"
@@ -85,6 +86,14 @@
     "confirm": "Confirm",
     "messagesFromTeachers": "Messages from Teachers",
     "viewAll": "View All",
+    "behaviourLog": "Behaviour Log",
+    "behaviourSubtitle": "Recent incidents and teacher remarks for the selected child",
+    "loadingBehaviour": "Loading behaviour log...",
+    "failedBehaviour": "Failed to load behaviour log.",
+    "noBehaviour": "No behaviour entries available right now.",
+    "behaviourIncident": "Incident",
+    "behaviourRemark": "Remark",
+    "recentAnnouncements": "Recent Announcements",
     "recentNotifications": "Recent Notifications",
     "schedulesPlanners": "Schedules & Planners",
     "accessCalendars": "Access current class and academic calendars",
@@ -283,6 +292,22 @@
   "notifications": {
     "all": "All",
     "markAllRead": "Mark all as read"
+  },
+  "announcements": {
+    "title": "Announcements",
+    "subtitle": "Branch and class updates relevant to the selected child.",
+    "searchPlaceholder": "Search announcements",
+    "loading": "Loading announcements...",
+    "error": "Failed to load announcements.",
+    "empty": "No announcements match the current filters.",
+    "urgent": "Urgent",
+    "scheduledFor": "Scheduled for {date}",
+    "filters": {
+      "all": "All",
+      "urgent": "Urgent",
+      "sent": "Sent",
+      "scheduled": "Scheduled"
+    }
   },
   "messages": {
     "live": "Live",

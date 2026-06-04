@@ -18,6 +18,7 @@ const child: Child = {
   id: 'student-1',
   branchId: 'branch-1',
   branchName: 'Main Branch',
+  gradeId: 'grade-7',
   sectionId: 'section-1',
   name: 'Sara Bekele',
   initials: 'SB',

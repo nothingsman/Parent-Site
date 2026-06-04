@@ -15,11 +15,11 @@ import {
 } from 'lucide-react';
 
 import { Card, Badge, SectionLabel } from '@/components/ui';
-import { useConfirmHomework, useTodaysHomework } from '@/hooks';
+import { useAnnouncements, useBehaviourLog, useConfirmHomework, useTodaysHomework } from '@/hooks';
 import { queryKeys } from '@/lib/queryKeys';
 import { listChatThreads } from '@/services/messageService';
 import { getSectionTeacherAssignments } from '@/services/teacherService';
-import { Child, NotificationEntry, TodaysHomeworkEntry } from '@/types';
+import { AnnouncementEntry, BehaviourLogEntry, Child, NotificationEntry, TodaysHomeworkEntry } from '@/types';
 import { getGradeColor, getGradeLetter } from '@/lib/utils';
 import { useTranslation } from '@/lib/i18n';
 
@@ -50,7 +50,14 @@ export const OverviewModule = ({
   const [selectedHomework, setSelectedHomework] =
     React.useState<TodaysHomeworkEntry | null>(null);
   const { t } = useTranslation();
-  const recentNotifications = notifications ?? child.notifications;
+  const { data: behaviourLog = [], isLoading: isBehaviourLoading, isError: isBehaviourError, error: behaviourError } =
+    useBehaviourLog(child.id);
+  const {
+    data: announcements = [],
+    isLoading: isAnnouncementsLoading,
+    isError: isAnnouncementsError,
+    error: announcementsError,
+  } = useAnnouncements(child);
 
   // Compute absences count
   const absentCount = child.attendance_log.filter(
@@ -121,6 +128,36 @@ export const OverviewModule = ({
       hour: 'numeric',
       minute: '2-digit',
     }).format(date);
+  };
+
+  const formatAbsoluteDateTime = (value: string | null) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(date);
+  };
+
+  const getBehaviourAccent = (entry: BehaviourLogEntry) => {
+    if (entry.severity === 'HIGH') return 'border-rose-200 bg-rose-50/60 text-rose-700';
+    if (entry.severity === 'MEDIUM') return 'border-amber-200 bg-amber-50/60 text-amber-700';
+    return 'border-emerald-200 bg-emerald-50/60 text-emerald-700';
+  };
+
+  const getBehaviourLabel = (entry: BehaviourLogEntry) =>
+    entry.type === 'incident' ? t('overview.behaviourIncident') : t('overview.behaviourRemark');
+
+  const getAnnouncementDateLabel = (entry: AnnouncementEntry) => {
+    const formatted = formatAbsoluteDateTime(entry.effectiveDate);
+    if (entry.status === 'SCHEDULED' && entry.scheduledAt) {
+      return t('announcements.scheduledFor', { date: formatted });
+    }
+    return formatted;
   };
 
   const getHomeworkBadgeVariant = (entry: {
@@ -460,43 +497,104 @@ export const OverviewModule = ({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Notifications */}
+        <Card className="flex flex-col justify-between h-full bg-white shadow-none">
+          <div>
+            <div className="flex items-center justify-between mb-4 border-b border-slate-50 pb-3">
+              <div>
+                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">
+                  {t("overview.behaviourLog")}
+                </h3>
+                <p className="text-[11px] text-slate-400">{t("overview.behaviourSubtitle")}</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {isBehaviourLoading && (
+                <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 text-sm font-medium text-slate-500">
+                  {t("overview.loadingBehaviour")}
+                </div>
+              )}
+              {isBehaviourError && (
+                <div className="rounded-xl border border-red-100 bg-red-50/70 p-4 text-sm font-medium text-red-700">
+                  {behaviourError?.message ?? t("overview.failedBehaviour")}
+                </div>
+              )}
+              {!isBehaviourLoading && !isBehaviourError && behaviourLog.length === 0 && (
+                <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 text-sm font-medium text-slate-500">
+                  {t("overview.noBehaviour")}
+                </div>
+              )}
+              {!isBehaviourLoading && !isBehaviourError && behaviourLog.slice(0, 4).map((entry) => (
+                <div key={entry.id} className="rounded-xl border border-slate-100 bg-slate-50/50 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${getBehaviourAccent(entry)}`}>
+                        {entry.severity}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600">
+                        {getBehaviourLabel(entry)}
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-medium text-slate-400">
+                      {formatAbsoluteDateTime(entry.occurredAt ?? entry.createdAt)}
+                    </span>
+                  </div>
+                  <h4 className="mt-2 text-sm font-semibold text-slate-800">{entry.title}</h4>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">{entry.description}</p>
+                  <p className="mt-2 text-[11px] font-medium text-slate-400">
+                    {entry.teacherName ? `${entry.teacherName} • ${entry.source}` : entry.source}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+
+        {/* Recent Announcements */}
         <Card>
           <div className="flex items-center justify-between mb-4">
-            <SectionLabel>{t("overview.recentNotifications")}</SectionLabel>
+            <SectionLabel>{t("overview.recentAnnouncements")}</SectionLabel>
             <button
-              onClick={() => setActiveModule("Notifications")}
+              onClick={() => setActiveModule("Announcements")}
               className="text-[10px] font-bold text-blue-600 hover:underline"
             >
               {t("overview.viewAll")} →
             </button>
           </div>
           <div className="space-y-3">
-            {recentNotifications.slice(0, 4).map((notif) => {
-              const IconComp = getIconComponent(notif.icon);
-              const colorClasses = getColorClasses(notif.color);
-
-              return (
-                <div
-                  key={notif.id}
-                  className="flex items-center gap-3 px-2 py-1"
-                >
-                  <div
-                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${colorClasses}`}
-                  >
-                    <IconComp size={14} />
+            {isAnnouncementsLoading && (
+              <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 text-sm font-medium text-slate-500">
+                {t("announcements.loading")}
+              </div>
+            )}
+            {isAnnouncementsError && (
+              <div className="rounded-xl border border-red-100 bg-red-50/70 p-4 text-sm font-medium text-red-700">
+                {announcementsError?.message ?? t("announcements.error")}
+              </div>
+            )}
+            {!isAnnouncementsLoading && !isAnnouncementsError && announcements.length === 0 && (
+              <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 text-sm font-medium text-slate-500">
+                {t("announcements.empty")}
+              </div>
+            )}
+            {!isAnnouncementsLoading && !isAnnouncementsError && announcements.slice(0, 4).map((entry) => (
+              <div key={entry.id} className="rounded-xl border border-slate-100 bg-slate-50/50 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {entry.isUrgent && (
+                      <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-rose-600">
+                        {t("announcements.urgent")}
+                      </span>
+                    )}
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600">
+                      {entry.status}
+                    </span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-medium text-slate-800">
-                      {notif.title}
-                    </h4>
-                    <p className="text-xs text-slate-405 truncate">
-                      {notif.detail}
-                    </p>
-                  </div>
+                  <span className="text-[11px] font-medium text-slate-400">{getAnnouncementDateLabel(entry)}</span>
                 </div>
-              );
-            })}
+                <h4 className="mt-2 text-sm font-semibold text-slate-800">{entry.subject}</h4>
+                <p className="mt-1 text-xs leading-5 text-slate-500">{entry.message}</p>
+              </div>
+            ))}
           </div>
         </Card>
 

@@ -12,6 +12,8 @@ export { useAttendance } from './useAttendance';
 export { useGrades } from './useGrades';
 export { useMessages } from './useMessages';
 export { useNotifications } from './useNotifications';
+export { useBehaviourLog } from './useBehaviourLog';
+export { useAnnouncements } from './useAnnouncements';
 export { useSchedule } from './useSchedule';
 export { useSendMessage } from './useSendMessage';
 export { useTodaysHomework } from './useTodaysHomework';

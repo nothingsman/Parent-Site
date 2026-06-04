@@ -25,6 +25,12 @@ import { getCurrentCalendarDocument } from '../calendarService';
 import { getMediaFile, uploadFileToMedia } from '../mediaService';
 import { getStudentInsight } from '../studentInsightService';
 import {
+  getAnnouncementEffectiveDate,
+  getAnnouncements,
+  isAnnouncementRelevantToChild,
+} from '../announcementService';
+import { getBehaviourLog } from '../behaviourService';
+import {
   login,
   requestOtp,
   requestInvitationOtp,
@@ -53,6 +59,7 @@ describe('childService', () => {
       id: 'STU-001',
       first_name: 'Test',
       last_name: 'Child',
+      grade_id: 'grade-6',
       grade_name: '6',
       section_name: 'A',
       current_section: 'section-1',
@@ -65,6 +72,7 @@ describe('childService', () => {
     );
     const result = await getChildren();
     expect(result[0]?.id).toEqual('STU-001');
+    expect(result[0]?.gradeId).toEqual('grade-6');
     expect(result[0]?.sectionId).toEqual('section-1');
   });
 
@@ -74,6 +82,7 @@ describe('childService', () => {
         id: 'STU-001',
         first_name: 'Test',
         last_name: 'Child',
+        grade_id: 'grade-6',
         grade_name: '6',
         section_name: 'A',
         current_section: 'section-1',
@@ -103,6 +112,7 @@ describe('assignmentService', () => {
     id: 'STU-001',
     branchId: 'branch-1',
     branchName: 'Main Branch',
+    gradeId: 'grade-6',
     sectionId: 'section-1',
     name: 'Test Child',
     initials: 'TC',
@@ -741,6 +751,179 @@ describe('studentInsightService', () => {
       created_at: '2026-05-30T10:00:00Z',
       delivered_at: '2026-05-30T10:01:00Z',
     });
+  });
+});
+
+describe('announcementService', () => {
+  const selectedChild: Child = {
+    id: 'STU-001',
+    branchId: 'branch-1',
+    branchName: 'Main Branch',
+    gradeId: 'grade-6',
+    sectionId: 'section-1',
+    name: 'Test Child',
+    initials: 'TC',
+    grade: '6',
+    section: 'A',
+    overallAvg: 0,
+    attendance: 0,
+    assignmentsDue: 0,
+    missingWork: 0,
+    subjects: [],
+    attendance_log: [],
+    homework: [],
+    assignments: [],
+    messages: [],
+    notifications: [],
+    schedule: [],
+  };
+
+  it('computes effective date with scheduled_at, updated_at, then created_at fallback', () => {
+    expect(
+      getAnnouncementEffectiveDate({
+        scheduled_at: '2026-06-06T06:30:00Z',
+        updated_at: '2026-06-02T07:05:00Z',
+        created_at: '2026-06-02T07:00:00Z',
+      })
+    ).toBe('2026-06-06T06:30:00Z');
+    expect(
+      getAnnouncementEffectiveDate({
+        scheduled_at: null,
+        updated_at: '2026-06-02T07:05:00Z',
+        created_at: '2026-06-02T07:00:00Z',
+      })
+    ).toBe('2026-06-02T07:05:00Z');
+  });
+
+  it('filters announcements for the selected child and excludes drafts', async () => {
+    server.use(
+      http.get(`${BASE}/api/announcements/`, () =>
+        HttpResponse.json([
+          {
+            id: 'ANN-1',
+            branch: 'branch-1',
+            subject: 'Parent meeting this Friday',
+            message: 'Please attend.',
+            scheduled_at: null,
+            is_urgent: false,
+            status: 'SENT',
+            target_roles: 'PARENTS',
+            targeted_grades: ['grade-6'],
+            targeted_sections: [],
+            created_at: '2026-06-01T09:00:00Z',
+            updated_at: '2026-06-01T09:15:00Z',
+          },
+          {
+            id: 'ANN-2',
+            branch: 'branch-1',
+            subject: 'Transport change',
+            message: 'Updated pickup time.',
+            scheduled_at: '2026-06-06T06:30:00Z',
+            is_urgent: true,
+            status: 'SCHEDULED',
+            target_roles: 'PARENTS',
+            targeted_grades: [],
+            targeted_sections: ['section-1'],
+            created_at: '2026-06-02T07:00:00Z',
+            updated_at: '2026-06-02T07:05:00Z',
+          },
+          {
+            id: 'ANN-3',
+            branch: 'branch-1',
+            subject: 'Draft should not show',
+            message: 'Hidden.',
+            scheduled_at: null,
+            is_urgent: false,
+            status: 'DRAFT',
+            target_roles: 'PARENTS',
+            targeted_grades: ['grade-6'],
+            targeted_sections: [],
+            created_at: '2026-06-03T07:00:00Z',
+            updated_at: '2026-06-03T07:05:00Z',
+          },
+          {
+            id: 'ANN-4',
+            branch: 'branch-2',
+            subject: 'Other branch',
+            message: 'Should not show.',
+            scheduled_at: null,
+            is_urgent: true,
+            status: 'SENT',
+            target_roles: 'PARENTS',
+            targeted_grades: ['grade-6'],
+            targeted_sections: [],
+            created_at: '2026-06-04T07:00:00Z',
+            updated_at: '2026-06-04T07:05:00Z',
+          },
+        ])
+      )
+    );
+
+    const result = await getAnnouncements(selectedChild);
+    expect(result.map((entry) => entry.id)).toEqual(['ANN-2', 'ANN-1']);
+    expect(result[0]?.status).toBe('SCHEDULED');
+    expect(result[0]?.isUrgent).toBe(true);
+  });
+
+  it('matches whole-branch, grade, and section targeting rules', () => {
+    expect(
+      isAnnouncementRelevantToChild(
+        {
+          id: 'ANN-1',
+          branchId: 'branch-1',
+          subject: 'Branch-wide',
+          message: 'All parents.',
+          status: 'SENT',
+          isUrgent: false,
+          scheduledAt: null,
+          createdAt: '2026-06-01T09:00:00Z',
+          updatedAt: '2026-06-01T09:15:00Z',
+          targetRoles: 'PARENTS',
+          targetGrades: [],
+          targetSections: [],
+          effectiveDate: '2026-06-01T09:15:00Z',
+        },
+        selectedChild
+      )
+    ).toBe(true);
+  });
+});
+
+describe('behaviourService', () => {
+  it('returns a merged descending behaviour timeline', async () => {
+    server.use(
+      http.get(`${BASE}/api/parents/my-students/STU-001/behaviour-log/`, () =>
+        HttpResponse.json([
+          {
+            id: 'BL-1',
+            type: 'incident',
+            title: 'Classroom disruption',
+            description: 'Interrupted classmates.',
+            severity: 'HIGH',
+            teacherName: 'Mr. Daniel',
+            source: 'Teacher Incident',
+            occurredAt: '2026-06-01T08:00:00Z',
+            createdAt: '2026-06-01T08:10:00Z',
+          },
+          {
+            id: 'BL-2',
+            type: 'remark',
+            title: 'Improved participation',
+            description: 'Asked thoughtful questions.',
+            severity: 'LOW',
+            teacherName: 'Ms. Hana',
+            source: 'Teacher Remark',
+            occurredAt: '2026-06-02T08:00:00Z',
+            createdAt: '2026-06-02T08:10:00Z',
+          },
+        ])
+      )
+    );
+
+    const result = await getBehaviourLog('STU-001');
+    expect(result.map((entry) => entry.id)).toEqual(['BL-2', 'BL-1']);
+    expect(result[0]?.type).toBe('remark');
+    expect(result[1]?.type).toBe('incident');
   });
 });
 
